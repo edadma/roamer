@@ -12,8 +12,9 @@ import {
   CommandLineIcon,
   CubeIcon,
 } from '@aster-ui/icons'
+import type { IconProps } from '@aster-ui/icons'
 
-const iconByExtension: Record<string, React.FC<{ size?: string | number; className?: string }>> = {
+const iconByExtension: Record<string, React.FC<IconProps>> = {
   // Images
   png: PhotoIcon,
   jpg: PhotoIcon,
@@ -93,7 +94,7 @@ const iconByExtension: Record<string, React.FC<{ size?: string | number; classNa
   toml: CubeIcon,
 }
 
-export function getFileIcon(extension: string, isDirectory: boolean) {
+export function getFileIcon(extension: string, isDirectory: boolean): React.FC<IconProps> {
   if (isDirectory) return FolderIcon
   return iconByExtension[extension.toLowerCase()] ?? DocumentIcon
 }

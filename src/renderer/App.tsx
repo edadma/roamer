@@ -10,7 +10,7 @@ const { Text } = Typography
 
 declare global {
   interface Window {
-    roam: {
+    roamer: {
       platform: string
       readDirectory: (path: string) => Promise<FileEntry[]>
       getHome: () => Promise<string>
