@@ -1,0 +1,36 @@
+{
+  "name": "roam",
+  "version": "0.1.0",
+  "description": "A cross-platform file explorer with an integrated terminal",
+  "main": "dist/main/index.js",
+  "scripts": {
+    "dev": "vite",
+    "build": "tsc && vite build && tsc -p tsconfig.main.json",
+    "preview": "vite preview",
+    "electron": "npm run build && electron .",
+    "dev:electron": "tsc -p tsconfig.main.json && concurrently \"vite\" \"wait-on http://localhost:5173 && NODE_ENV=development electron .\""
+  },
+  "author": "",
+  "license": "MIT",
+  "dependencies": {
+    "@aster-ui/icons": "^0.2.0",
+    "@petradb/engine": "^1.5.1",
+    "@petradb/quarry": "^1.5.1",
+    "asterui": "^0.12.86",
+    "concurrently": "^9.2.1",
+    "electron": "^41.0.3",
+    "react": "^19.2.4",
+    "react-dom": "^19.2.4",
+    "wait-on": "^9.0.4"
+  },
+  "devDependencies": {
+    "@tailwindcss/vite": "^4.2.1",
+    "@types/react": "^19.2.14",
+    "@types/react-dom": "^19.2.3",
+    "@vitejs/plugin-react": "^4.7.0",
+    "daisyui": "^5.5.19",
+    "tailwindcss": "^4.2.1",
+    "typescript": "^5.9.3",
+    "vite": "^6.4.1"
+  }
+}
