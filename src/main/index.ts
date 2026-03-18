@@ -25,6 +25,10 @@ ipcMain.handle('get-home', () => {
   return app.getPath('home')
 })
 
+ipcMain.handle('get-cwd', () => {
+  return process.cwd()
+})
+
 ipcMain.handle('read-directory', async (_event, dirPath: string) => {
   const entries = await fs.readdir(dirPath, { withFileTypes: true })
   const results = await Promise.all(
