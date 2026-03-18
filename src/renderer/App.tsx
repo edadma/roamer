@@ -1,7 +1,6 @@
 import { useEffect, useState, useCallback, useRef } from 'react'
 import { Typography, Button } from 'asterui'
-import { useTheme } from 'asterui'
-import { ArrowLeftIcon, ArrowRightIcon, ArrowUpIcon, PencilSquareIcon, SunIcon, MoonIcon } from '@aster-ui/icons'
+import { ArrowLeftIcon, ArrowRightIcon, ArrowUpIcon, PencilSquareIcon } from '@aster-ui/icons'
 import { getFileIcon } from './icons'
 import { initDb } from './db'
 import type { FileEntry } from './types'
@@ -17,19 +16,6 @@ declare global {
       getCwd: () => Promise<string>
     }
   }
-}
-
-function ThemeSwitcher() {
-  const { isDark, setTheme } = useTheme()
-  return (
-    <Button
-      variant="ghost"
-      size="sm"
-      shape="square"
-      icon={isDark ? <SunIcon /> : <MoonIcon />}
-      onClick={() => setTheme?.(isDark ? 'light' : 'dark')}
-    />
-  )
 }
 
 function PathBar({
@@ -219,9 +205,6 @@ export default function App() {
           onClick={goUp}
         />
         <PathBar currentPath={currentPath} onNavigate={navigate} onEditStart={() => setError(null)} />
-        <div className="ml-auto flex items-center gap-1">
-          <ThemeSwitcher />
-        </div>
       </div>
 
       {/* Error bar */}
