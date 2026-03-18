@@ -1,6 +1,6 @@
 import { contextBridge, ipcRenderer } from 'electron'
 
-contextBridge.exposeInMainWorld('roam', {
+contextBridge.exposeInMainWorld('roamer', {
   platform: process.platform,
   readDirectory: (dirPath: string) => ipcRenderer.invoke('read-directory', dirPath),
   getHome: () => ipcRenderer.invoke('get-home'),

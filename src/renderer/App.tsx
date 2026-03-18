@@ -131,14 +131,14 @@ export default function App() {
 
   useEffect(() => {
     initDb().then(() => setDbReady(true))
-    window.roam.getCwd().then((cwd) => {
+    window.roamer.getCwd().then((cwd) => {
       setCurrentPath(cwd)
     })
   }, [])
 
   useEffect(() => {
     if (!currentPath) return
-    window.roam.readDirectory(currentPath).then((items) => {
+    window.roamer.readDirectory(currentPath).then((items) => {
       const sorted = items.sort((a, b) => {
         if (a.isDirectory !== b.isDirectory) return a.isDirectory ? -1 : 1
         return a.name.localeCompare(b.name)

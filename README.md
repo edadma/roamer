@@ -1,4 +1,4 @@
-# Roam
+# Roamer
 
 A cross-platform file explorer with an integrated terminal, built with Electron, React, and TypeScript.
 
