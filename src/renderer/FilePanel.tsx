@@ -202,9 +202,10 @@ interface FilePanelProps {
   onFocus: () => void
   onDrop?: (sourcePaths: string[], destDir: string, copy: boolean) => void
   onFileClick?: (entry: FileEntry | null) => void
+  cutPaths?: Set<string>
 }
 
-export default function FilePanel({ panel, focused, onFocus, onDrop, onFileClick }: FilePanelProps) {
+export default function FilePanel({ panel, focused, onFocus, onDrop, onFileClick, cutPaths }: FilePanelProps) {
   const containerRef = useRef<HTMLDivElement>(null)
   const lastClickedIndex = useRef<number>(-1)
   const wasRubberBand = useRef(false)
@@ -572,6 +573,7 @@ export default function FilePanel({ panel, focused, onFocus, onDrop, onFileClick
         const Icon = getFileIcon(entry.extension, entry.isDirectory)
         const isSelected = panel.selected.has(entry.path)
         const isDropTarget = dropTarget === entry.path
+        const isCut = cutPaths?.has(entry.path) ?? false
         const bgColor = isSelected
           ? 'oklch(0.65 0.2 250 / 0.2)'
           : isDropTarget
@@ -589,6 +591,7 @@ export default function FilePanel({ panel, focused, onFocus, onDrop, onFileClick
                 borderRadius: 4,
                 outline: isDropTarget ? '2px solid oklch(0.65 0.2 150)' : undefined,
                 fontSize: 13,
+                opacity: isCut ? 0.4 : undefined,
               }}
             >
               <Icon size="sm" className={entry.isDirectory ? 'text-warning' : 'text-base-content'} />
@@ -633,6 +636,7 @@ export default function FilePanel({ panel, focused, onFocus, onDrop, onFileClick
               backgroundColor: bgColor,
               borderRadius: 8,
               outline: isDropTarget ? '2px solid oklch(0.65 0.2 150)' : undefined,
+              opacity: isCut ? 0.4 : undefined,
             }}
           >
             <Icon

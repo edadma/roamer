@@ -181,6 +181,8 @@ export default function App() {
     | { type: 'trash'; paths: string[] }
   const [undoStack, setUndoStack] = useState<UndoEntry[]>([])
 
+  const cutPathsSet = clipboard?.mode === 'cut' ? new Set(clipboard.paths) : undefined
+
   const xtermRef = useRef<XTerm | null>(null)
 
   useEffect(() => {
@@ -555,11 +557,11 @@ export default function App() {
               <div style={{ height: '100%' }}>
                 {splitView ? (
                   <Splitter direction="horizontal" defaultRatio={0.5} minSize={200}>
-                    <FilePanel panel={leftPanel} focused={activePanel === 'left'} onFocus={() => setActivePanel('left')} onDrop={handleFileDrop} onFileClick={setInspectedFile} />
-                    <FilePanel panel={rightPanel} focused={activePanel === 'right'} onFocus={() => setActivePanel('right')} onDrop={handleFileDrop} onFileClick={setInspectedFile} />
+                    <FilePanel panel={leftPanel} focused={activePanel === 'left'} onFocus={() => setActivePanel('left')} onDrop={handleFileDrop} onFileClick={setInspectedFile} cutPaths={cutPathsSet} />
+                    <FilePanel panel={rightPanel} focused={activePanel === 'right'} onFocus={() => setActivePanel('right')} onDrop={handleFileDrop} onFileClick={setInspectedFile} cutPaths={cutPathsSet} />
                   </Splitter>
                 ) : (
-                  <FilePanel panel={leftPanel} focused={true} onFocus={() => setActivePanel('left')} onDrop={handleFileDrop} onFileClick={setInspectedFile} />
+                  <FilePanel panel={leftPanel} focused={true} onFocus={() => setActivePanel('left')} onDrop={handleFileDrop} onFileClick={setInspectedFile} cutPaths={cutPathsSet} />
                 )}
               </div>
               {/* Info panel */}
@@ -567,11 +569,11 @@ export default function App() {
             </Splitter>
           ) : splitView ? (
             <Splitter direction="horizontal" defaultRatio={0.5} minSize={200}>
-              <FilePanel panel={leftPanel} focused={activePanel === 'left'} onFocus={() => setActivePanel('left')} onDrop={handleFileDrop} onFileClick={setInspectedFile} />
-              <FilePanel panel={rightPanel} focused={activePanel === 'right'} onFocus={() => setActivePanel('right')} onDrop={handleFileDrop} onFileClick={setInspectedFile} />
+              <FilePanel panel={leftPanel} focused={activePanel === 'left'} onFocus={() => setActivePanel('left')} onDrop={handleFileDrop} onFileClick={setInspectedFile} cutPaths={cutPathsSet} />
+              <FilePanel panel={rightPanel} focused={activePanel === 'right'} onFocus={() => setActivePanel('right')} onDrop={handleFileDrop} onFileClick={setInspectedFile} cutPaths={cutPathsSet} />
             </Splitter>
           ) : (
-            <FilePanel panel={leftPanel} focused={true} onFocus={() => setActivePanel('left')} onDrop={handleFileDrop} onFileClick={setInspectedFile} />
+            <FilePanel panel={leftPanel} focused={true} onFocus={() => setActivePanel('left')} onDrop={handleFileDrop} onFileClick={setInspectedFile} cutPaths={cutPathsSet} />
           )}
           {/* Terminal panel */}
           <div ref={termContainerCallback} className="h-full" />
