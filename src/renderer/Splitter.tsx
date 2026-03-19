@@ -1,4 +1,4 @@
-import { useRef, useState, useCallback, type ReactNode } from 'react'
+import { useRef, useState, useCallback, useEffect, type ReactNode } from 'react'
 
 type Direction = 'horizontal' | 'vertical'
 
@@ -6,6 +6,7 @@ interface SplitterProps {
   direction: Direction
   children: ReactNode[]
   defaultSize?: number
+  defaultRatio?: number
   size?: number
   onSizeChange?: (size: number) => void
   minSize?: number
@@ -17,6 +18,7 @@ export default function Splitter({
   direction,
   children,
   defaultSize = 200,
+  defaultRatio,
   size: controlledSize,
   onSizeChange,
   minSize = 80,
@@ -24,6 +26,7 @@ export default function Splitter({
   className = '',
 }: SplitterProps) {
   const [internalSize, setInternalSize] = useState(defaultSize)
+  const initialized = useRef(false)
   const size = controlledSize ?? internalSize
   const updateSize = useCallback((s: number) => {
     if (onSizeChange) onSizeChange(s)
@@ -32,6 +35,18 @@ export default function Splitter({
 
   const dragging = useRef(false)
   const containerRef = useRef<HTMLDivElement>(null)
+
+  // Set initial size from ratio on mount
+  useEffect(() => {
+    if (defaultRatio !== undefined && !initialized.current && containerRef.current) {
+      const rect = containerRef.current.getBoundingClientRect()
+      const total = direction === 'vertical' ? rect.height : rect.width
+      if (total > 0) {
+        setInternalSize(Math.round(total * defaultRatio))
+        initialized.current = true
+      }
+    }
+  })
 
   const isVertical = direction === 'vertical'
 
@@ -65,7 +80,7 @@ export default function Splitter({
 
     document.addEventListener('mousemove', onMove)
     document.addEventListener('mouseup', onUp)
-  }, [isVertical, minSize, updateSize])
+  }, [isVertical, reverse, minSize, updateSize])
 
   const flexDir = isVertical ? 'column' : 'row'
   const cursor = isVertical ? 'row-resize' : 'col-resize'

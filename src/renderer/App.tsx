@@ -458,28 +458,26 @@ export default function App() {
           {inspectedFile ? (
             <Splitter direction="horizontal" defaultSize={280} minSize={200} reverse>
               {/* File grids */}
-              {splitView ? (
-                <Splitter direction="horizontal" defaultSize={400} minSize={200}>
-                  <FilePanel panel={leftPanel} focused={activePanel === 'left'} onFocus={() => setActivePanel('left')} onDrop={handleFileDrop} onFileClick={setInspectedFile} />
-                  <FilePanel panel={rightPanel} focused={activePanel === 'right'} onFocus={() => setActivePanel('right')} onDrop={handleFileDrop} onFileClick={setInspectedFile} />
-                </Splitter>
-              ) : (
-                <FilePanel panel={leftPanel} focused={true} onFocus={() => setActivePanel('left')} onDrop={handleFileDrop} onFileClick={setInspectedFile} />
-              )}
+              <div style={{ height: '100%' }}>
+                {splitView ? (
+                  <Splitter direction="horizontal" defaultRatio={0.5} minSize={200}>
+                    <FilePanel panel={leftPanel} focused={activePanel === 'left'} onFocus={() => setActivePanel('left')} onDrop={handleFileDrop} onFileClick={setInspectedFile} />
+                    <FilePanel panel={rightPanel} focused={activePanel === 'right'} onFocus={() => setActivePanel('right')} onDrop={handleFileDrop} onFileClick={setInspectedFile} />
+                  </Splitter>
+                ) : (
+                  <FilePanel panel={leftPanel} focused={true} onFocus={() => setActivePanel('left')} onDrop={handleFileDrop} onFileClick={setInspectedFile} />
+                )}
+              </div>
               {/* Info panel */}
               <InfoPanel entry={inspectedFile} onDismiss={() => setInspectedFile(null)} />
             </Splitter>
+          ) : splitView ? (
+            <Splitter direction="horizontal" defaultRatio={0.5} minSize={200}>
+              <FilePanel panel={leftPanel} focused={activePanel === 'left'} onFocus={() => setActivePanel('left')} onDrop={handleFileDrop} onFileClick={setInspectedFile} />
+              <FilePanel panel={rightPanel} focused={activePanel === 'right'} onFocus={() => setActivePanel('right')} onDrop={handleFileDrop} onFileClick={setInspectedFile} />
+            </Splitter>
           ) : (
-            <>
-              {splitView ? (
-                <Splitter direction="horizontal" defaultSize={400} minSize={200}>
-                  <FilePanel panel={leftPanel} focused={activePanel === 'left'} onFocus={() => setActivePanel('left')} onDrop={handleFileDrop} onFileClick={setInspectedFile} />
-                  <FilePanel panel={rightPanel} focused={activePanel === 'right'} onFocus={() => setActivePanel('right')} onDrop={handleFileDrop} onFileClick={setInspectedFile} />
-                </Splitter>
-              ) : (
-                <FilePanel panel={leftPanel} focused={true} onFocus={() => setActivePanel('left')} onDrop={handleFileDrop} onFileClick={setInspectedFile} />
-              )}
-            </>
+            <FilePanel panel={leftPanel} focused={true} onFocus={() => setActivePanel('left')} onDrop={handleFileDrop} onFileClick={setInspectedFile} />
           )}
           {/* Terminal panel */}
           <div ref={termContainerCallback} className="h-full" />
