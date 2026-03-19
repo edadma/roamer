@@ -25,6 +25,7 @@ declare global {
       readDirectory: (path: string) => Promise<FileEntry[]>
       getHome: () => Promise<string>
       getCwd: () => Promise<string>
+      startDrag: (filePaths: string[]) => void
       copyFiles: (sources: string[], destDir: string) => Promise<{ src: string; dest: string; error?: string }[]>
       moveFiles: (sources: string[], destDir: string) => Promise<{ src: string; dest: string; error?: string }[]>
       deleteFiles: (paths: string[]) => Promise<{ path: string; error?: string }[]>
@@ -263,6 +264,23 @@ export default function App() {
     return () => window.removeEventListener('keydown', handler, true)
   }, [active, clipboard, leftPanel, rightPanel])
 
+  // Handle file drops (from panels or Finder)
+  const handleFileDrop = useCallback((sourcePaths: string[], destDir: string, copy: boolean) => {
+    // Don't drop onto the same directory the files are in
+    const op = copy
+      ? window.roamer.copyFiles(sourcePaths, destDir)
+      : window.roamer.moveFiles(sourcePaths, destDir)
+    op.then((results) => {
+      const errors = results.filter((r) => r.error)
+      if (errors.length > 0) {
+        active.setError(`Failed: ${errors.map((e) => e.error).join(', ')}`)
+      }
+      leftPanel.refresh()
+      rightPanel.refresh()
+      requestAnimationFrame(() => xtermRef.current?.focus())
+    })
+  }, [active, leftPanel, rightPanel])
+
   // Spawn PTY once we have a path
   const ptySpawned = useRef(false)
   useEffect(() => {
@@ -372,11 +390,11 @@ export default function App() {
           {/* File grid area */}
           {splitView ? (
             <Splitter direction="horizontal" defaultSize={400} minSize={200}>
-              <FilePanel panel={leftPanel} focused={activePanel === 'left'} onFocus={() => setActivePanel('left')} />
-              <FilePanel panel={rightPanel} focused={activePanel === 'right'} onFocus={() => setActivePanel('right')} />
+              <FilePanel panel={leftPanel} focused={activePanel === 'left'} onFocus={() => setActivePanel('left')} onDrop={handleFileDrop} />
+              <FilePanel panel={rightPanel} focused={activePanel === 'right'} onFocus={() => setActivePanel('right')} onDrop={handleFileDrop} />
             </Splitter>
           ) : (
-            <FilePanel panel={leftPanel} focused={true} onFocus={() => setActivePanel('left')} />
+            <FilePanel panel={leftPanel} focused={true} onFocus={() => setActivePanel('left')} onDrop={handleFileDrop} />
           )}
           {/* Terminal panel */}
           <div ref={termContainerCallback} className="h-full" />

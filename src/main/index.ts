@@ -117,6 +117,22 @@ ipcMain.handle('delete-files', async (_event, paths: string[]) => {
   return results
 })
 
+// Native drag
+ipcMain.on('start-drag', (event, filePaths: string[]) => {
+  if (filePaths.length === 0) return
+  // Use the first file's icon as the drag image
+  const icon = filePaths.length === 1
+    ? app.getFileIcon(filePaths[0])
+    : app.getFileIcon(filePaths[0])
+  icon.then((nativeImage) => {
+    event.sender.startDrag({
+      file: filePaths[0],
+      files: filePaths,
+      icon: nativeImage,
+    })
+  })
+})
+
 // PTY management
 let ptyProcess: pty.IPty | null = null
 

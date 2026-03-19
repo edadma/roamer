@@ -105,12 +105,14 @@ interface FilePanelProps {
   panel: FilePanelState
   focused: boolean
   onFocus: () => void
+  onDrop?: (sourcePaths: string[], destDir: string, copy: boolean) => void
 }
 
-export default function FilePanel({ panel, focused, onFocus }: FilePanelProps) {
+export default function FilePanel({ panel, focused, onFocus, onDrop }: FilePanelProps) {
   const containerRef = useRef<HTMLDivElement>(null)
   const lastClickedIndex = useRef<number>(-1)
   const wasRubberBand = useRef(false)
+  const [dropTarget, setDropTarget] = useState<string | null>(null) // path of folder being hovered
 
   // Rubber band state
   const [rubberBand, setRubberBand] = useState<{ startX: number; startY: number; x: number; y: number } | null>(null)
@@ -232,6 +234,87 @@ export default function FilePanel({ panel, focused, onFocus }: FilePanelProps) {
     document.addEventListener('mouseup', onUp)
   }
 
+  // Drag start — HTML5 drag for panel-to-panel
+  const handleDragStart = (e: React.DragEvent, entry: FileEntry) => {
+    // If dragging an unselected item, select just that one
+    const paths = panel.selected.has(entry.path)
+      ? [...panel.selected]
+      : [entry.path]
+
+    if (!panel.selected.has(entry.path)) {
+      panel.setSelected(new Set([entry.path]))
+    }
+
+    e.dataTransfer.setData('application/x-roamer-paths', JSON.stringify(paths))
+    e.dataTransfer.effectAllowed = 'copyMove'
+  }
+
+  // Drop handling — panel background = drop into current dir
+  const handlePanelDragOver = (e: React.DragEvent) => {
+    e.preventDefault()
+    e.dataTransfer.dropEffect = e.metaKey || e.altKey ? 'copy' : 'move'
+    setDropTarget(panel.currentPath)
+  }
+
+  const handlePanelDragLeave = () => {
+    setDropTarget(null)
+  }
+
+  const handlePanelDrop = (e: React.DragEvent) => {
+    e.preventDefault()
+    setDropTarget(null)
+    const copy = e.metaKey || e.altKey
+
+    // Check for internal roamer paths first
+    const roamerData = e.dataTransfer.getData('application/x-roamer-paths')
+    if (roamerData) {
+      const paths = JSON.parse(roamerData) as string[]
+      onDrop?.(paths, panel.currentPath, copy)
+      return
+    }
+
+    // External files (from Finder)
+    const files = [...e.dataTransfer.files]
+    if (files.length > 0) {
+      const paths = files.map((f) => (f as any).path as string).filter(Boolean)
+      if (paths.length > 0) {
+        onDrop?.(paths, panel.currentPath, true) // always copy from external
+      }
+    }
+  }
+
+  // Drop on a specific folder
+  const handleFolderDragOver = (e: React.DragEvent, entry: FileEntry) => {
+    if (!entry.isDirectory) return
+    e.preventDefault()
+    e.stopPropagation()
+    e.dataTransfer.dropEffect = e.metaKey || e.altKey ? 'copy' : 'move'
+    setDropTarget(entry.path)
+  }
+
+  const handleFolderDrop = (e: React.DragEvent, entry: FileEntry) => {
+    if (!entry.isDirectory) return
+    e.preventDefault()
+    e.stopPropagation()
+    setDropTarget(null)
+    const copy = e.metaKey || e.altKey
+
+    const roamerData = e.dataTransfer.getData('application/x-roamer-paths')
+    if (roamerData) {
+      const paths = JSON.parse(roamerData) as string[]
+      onDrop?.(paths, entry.path, copy)
+      return
+    }
+
+    const files = [...e.dataTransfer.files]
+    if (files.length > 0) {
+      const paths = files.map((f) => (f as any).path as string).filter(Boolean)
+      if (paths.length > 0) {
+        onDrop?.(paths, entry.path, true)
+      }
+    }
+  }
+
   const rbStyle = rubberBand ? {
     position: 'absolute' as const,
     left: Math.min(rubberBand.startX, rubberBand.x),
@@ -258,14 +341,23 @@ export default function FilePanel({ panel, focused, onFocus }: FilePanelProps) {
       }}
       onClick={handleBackgroundClick}
       onMouseDown={handleMouseDown}
+      onDragOver={handlePanelDragOver}
+      onDragLeave={handlePanelDragLeave}
+      onDrop={handlePanelDrop}
     >
       {panel.visibleEntries.map((entry, index) => {
         const Icon = getFileIcon(entry.extension, entry.isDirectory)
         const isSelected = panel.selected.has(entry.path)
+        const isDropTarget = dropTarget === entry.path
         return (
           <button
             key={entry.name}
             data-path={entry.path}
+            draggable
+            onDragStart={(e) => handleDragStart(e, entry)}
+            onDragOver={(e) => handleFolderDragOver(e, entry)}
+            onDragLeave={() => setDropTarget(null)}
+            onDrop={(e) => handleFolderDrop(e, entry)}
             onClick={(e) => handleItemClick(e, entry, index)}
             onDoubleClick={() => {
               if (entry.isDirectory) panel.navigate(entry.path)
@@ -281,8 +373,13 @@ export default function FilePanel({ panel, focused, onFocus }: FilePanelProps) {
               height: 'auto',
               minHeight: '72px',
               cursor: 'default',
-              backgroundColor: isSelected ? 'oklch(0.65 0.2 250 / 0.2)' : undefined,
+              backgroundColor: isSelected
+                ? 'oklch(0.65 0.2 250 / 0.2)'
+                : isDropTarget
+                ? 'oklch(0.65 0.2 150 / 0.2)'
+                : undefined,
               borderRadius: 8,
+              outline: isDropTarget ? '2px solid oklch(0.65 0.2 150)' : undefined,
             }}
           >
             <Icon
