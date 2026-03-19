@@ -3,13 +3,20 @@ import { Typography, Button } from 'asterui'
 import { Terminal as XTerm } from '@xterm/xterm'
 import { FitAddon } from '@xterm/addon-fit'
 import '@xterm/xterm/css/xterm.css'
-import { ArrowLeftIcon, ArrowRightIcon, ArrowUpIcon, PencilSquareIcon } from '@aster-ui/icons'
+import { ArrowLeftIcon, ArrowRightIcon, ArrowUpIcon, PencilSquareIcon, HomeIcon, ComputerDesktopIcon, DocumentIcon, ArrowDownTrayIcon, FolderIcon } from '@aster-ui/icons'
 import { getFileIcon } from './icons'
 import Splitter from './Splitter'
-import { initDb } from './db'
+import { initDb, getPlaces, type Place } from './db'
 import type { FileEntry } from './types'
 
 const { Text } = Typography
+
+const placeIconMap: Record<string, typeof HomeIcon> = {
+  home: HomeIcon,
+  desktop: ComputerDesktopIcon,
+  documents: DocumentIcon,
+  downloads: ArrowDownTrayIcon,
+}
 
 declare global {
   interface Window {
@@ -123,20 +130,41 @@ export default function App() {
   const [forwardHistory, setForwardHistory] = useState<string[]>([])
   const [dbReady, setDbReady] = useState(false)
   const [error, setError] = useState<string | null>(null)
+  const [placesList, setPlacesList] = useState<Place[]>([])
   const [terminalOpen, setTerminalOpen] = useState(true)
-  const termContainerRef = useRef<HTMLDivElement>(null)
   const xtermRef = useRef<XTerm | null>(null)
 
   useEffect(() => {
-    initDb().then(() => setDbReady(true))
+    initDb().then(async () => {
+      setDbReady(true)
+      try {
+        const rows = await getPlaces()
+        setPlacesList(rows.sort((a, b) => a.sortOrder - b.sortOrder))
+      } catch (e) {
+        console.error('Failed to load places:', e)
+      }
+    })
     window.roamer.getCwd().then((cwd) => {
       setCurrentPath(cwd)
     })
   }, [])
 
-  // Initialize xterm and PTY
-  useEffect(() => {
-    if (!termContainerRef.current || xtermRef.current) return
+  // Initialize xterm when the container mounts
+  const fitAddonRef = useRef<FitAddon | null>(null)
+  const resizeObserverRef = useRef<ResizeObserver | null>(null)
+  const ptyCleanupRef = useRef<(() => void) | null>(null)
+
+  const termContainerCallback = useCallback((node: HTMLDivElement | null) => {
+    // Cleanup previous
+    if (!node) {
+      resizeObserverRef.current?.disconnect()
+      ptyCleanupRef.current?.()
+      xtermRef.current?.dispose()
+      xtermRef.current = null
+      return
+    }
+
+    if (xtermRef.current) return
 
     const term = new XTerm({
       fontSize: 13,
@@ -148,27 +176,22 @@ export default function App() {
       },
     })
     const fitAddon = new FitAddon()
+    fitAddonRef.current = fitAddon
     term.loadAddon(fitAddon)
-    term.open(termContainerRef.current)
+    term.open(node)
     requestAnimationFrame(() => fitAddon.fit())
     xtermRef.current = term
 
     term.onData((data) => window.roamer.ptyWrite(data))
 
-    const cleanup = window.roamer.onPtyData((data) => {
+    ptyCleanupRef.current = window.roamer.onPtyData((data) => {
       term.write(data)
     })
 
-    const resizeObserver = new ResizeObserver(() => fitAddon.fit())
-    resizeObserver.observe(termContainerRef.current)
-
-    return () => {
-      resizeObserver.disconnect()
-      cleanup()
-      term.dispose()
-      xtermRef.current = null
-    }
-  }, [terminalOpen])
+    const observer = new ResizeObserver(() => fitAddon.fit())
+    observer.observe(node)
+    resizeObserverRef.current = observer
+  }, [])
 
   // Spawn PTY once we have a path
   const ptySpawned = useRef(false)
@@ -293,60 +316,89 @@ export default function App() {
         </div>
       )}
 
-      {/* Main content area with terminal */}
-      <Splitter direction="vertical" defaultSize={200} minSize={80} className="flex-1 min-h-0">
-        {/* File grid */}
-        <div
-          className="overflow-auto p-3 h-full"
-          style={{
-            display: 'grid',
-            gridTemplateColumns: 'repeat(auto-fill, minmax(90px, 1fr))',
-            gap: '2px',
-            alignContent: 'start',
-          }}
-        >
-          {visibleEntries.map((entry) => {
-            const Icon = getFileIcon(entry.extension, entry.isDirectory)
-            return (
-              <button
-                key={entry.name}
-                onDoubleClick={() => {
-                  if (entry.isDirectory) navigate(entry.path)
-                }}
-                className="btn btn-ghost"
-                style={{
-                  display: 'flex',
-                  flexDirection: 'column',
-                  alignItems: 'center',
-                  justifyContent: 'flex-start',
-                  gap: '6px',
-                  padding: '8px 4px',
-                  height: 'auto',
-                  minHeight: '72px',
-                  cursor: entry.isDirectory ? 'pointer' : 'default',
-                }}
-              >
-                <Icon
-                  size="xl"
-                  className={entry.isDirectory ? 'text-warning' : 'text-base-content'}
-                />
-                <Text
-                  size="xs"
+      {/* Main content: sidebar + file grid + terminal */}
+      <Splitter direction="horizontal" defaultSize={180} minSize={120} className="flex-1 min-h-0">
+        {/* Places panel */}
+        <div className="h-full overflow-auto border-r border-base-300">
+          <div className="px-2 py-2">
+            <Text size="xs" type="secondary" style={{ fontWeight: 600, textTransform: 'uppercase', letterSpacing: '0.05em', padding: '4px 8px' }}>
+              Places
+            </Text>
+          </div>
+          <ul className="menu menu-sm px-1 py-0">
+            {placesList.map((place) => {
+              const PlaceIcon = placeIconMap[place.icon ?? ''] ?? FolderIcon
+              const isActive = currentPath === place.path
+              return (
+                <li key={place.id}>
+                  <a
+                    className={isActive ? 'active' : ''}
+                    onClick={() => navigate(place.path)}
+                  >
+                    <PlaceIcon size="sm" />
+                    {place.name}
+                  </a>
+                </li>
+              )
+            })}
+          </ul>
+        </div>
+
+        {/* File grid + terminal */}
+        <Splitter direction="vertical" defaultSize={200} minSize={80}>
+          {/* File grid */}
+          <div
+            className="overflow-auto p-3 h-full"
+            style={{
+              display: 'grid',
+              gridTemplateColumns: 'repeat(auto-fill, minmax(90px, 1fr))',
+              gap: '2px',
+              alignContent: 'start',
+            }}
+          >
+            {visibleEntries.map((entry) => {
+              const Icon = getFileIcon(entry.extension, entry.isDirectory)
+              return (
+                <button
+                  key={entry.name}
+                  onDoubleClick={() => {
+                    if (entry.isDirectory) navigate(entry.path)
+                  }}
+                  className="btn btn-ghost"
                   style={{
-                    textAlign: 'center',
-                    wordBreak: 'break-all',
-                    lineHeight: '1.2',
-                    maxWidth: '100%',
+                    display: 'flex',
+                    flexDirection: 'column',
+                    alignItems: 'center',
+                    justifyContent: 'flex-start',
+                    gap: '6px',
+                    padding: '8px 4px',
+                    height: 'auto',
+                    minHeight: '72px',
+                    cursor: entry.isDirectory ? 'pointer' : 'default',
                   }}
                 >
-                  {entry.name}
-                </Text>
-              </button>
-            )
-          })}
-        </div>
-        {/* Terminal panel */}
-        <div ref={termContainerRef} className="h-full" />
+                  <Icon
+                    size="xl"
+                    className={entry.isDirectory ? 'text-warning' : 'text-base-content'}
+                  />
+                  <Text
+                    size="xs"
+                    style={{
+                      textAlign: 'center',
+                      wordBreak: 'break-all',
+                      lineHeight: '1.2',
+                      maxWidth: '100%',
+                    }}
+                  >
+                    {entry.name}
+                  </Text>
+                </button>
+              )
+            })}
+          </div>
+          {/* Terminal panel */}
+          <div ref={termContainerCallback} className="h-full" />
+        </Splitter>
       </Splitter>
 
       {/* Status bar */}

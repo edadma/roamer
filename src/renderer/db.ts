@@ -32,3 +32,7 @@ export async function initDb() {
     { name: 'Downloads', path: `${home}/Downloads`, icon: 'downloads', sortOrder: 3, isDefault: true },
   ).execute()
 }
+
+export async function getPlaces(): Promise<Place[]> {
+  return db.select(places).execute()
+}
