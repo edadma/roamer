@@ -123,8 +123,10 @@ export default function App() {
   const [dbReady, setDbReady] = useState(false)
   const [error, setError] = useState<string | null>(null)
   const [terminalOpen, setTerminalOpen] = useState(true)
+  const [termHeight, setTermHeight] = useState(200)
   const termContainerRef = useRef<HTMLDivElement>(null)
   const xtermRef = useRef<XTerm | null>(null)
+  const dragging = useRef(false)
 
   useEffect(() => {
     initDb().then(() => setDbReady(true))
@@ -133,18 +135,49 @@ export default function App() {
     })
   }, [])
 
-  // Spawn PTY and wire up data flow
+  // Initialize xterm and PTY
   useEffect(() => {
-    if (!currentPath) return
-    window.roamer.ptySpawn(currentPath)
-    const cleanup = window.roamer.onPtyData((data) => {
-      terminalRef.current?.write(data)
+    if (!termContainerRef.current || xtermRef.current) return
+
+    const term = new XTerm({
+      fontSize: 13,
+      convertEol: true,
+      cursorBlink: true,
+      theme: {
+        background: '#1d232a',
+        foreground: '#a6adbb',
+      },
     })
+    const fitAddon = new FitAddon()
+    term.loadAddon(fitAddon)
+    term.open(termContainerRef.current)
+    requestAnimationFrame(() => fitAddon.fit())
+    xtermRef.current = term
+
+    term.onData((data) => window.roamer.ptyWrite(data))
+
+    const cleanup = window.roamer.onPtyData((data) => {
+      term.write(data)
+    })
+
+    const resizeObserver = new ResizeObserver(() => fitAddon.fit())
+    resizeObserver.observe(termContainerRef.current)
+
     return () => {
+      resizeObserver.disconnect()
       cleanup()
-      window.roamer.ptyKill()
+      term.dispose()
+      xtermRef.current = null
     }
-  }, []) // spawn once on mount
+  }, [terminalOpen])
+
+  // Spawn PTY once we have a path
+  const ptySpawned = useRef(false)
+  useEffect(() => {
+    if (!currentPath || ptySpawned.current) return
+    ptySpawned.current = true
+    window.roamer.ptySpawn(currentPath)
+  }, [currentPath])
 
   // cd when directory changes (after initial spawn)
   const prevPath = useRef('')
@@ -312,16 +345,37 @@ export default function App() {
         })}
       </div>
 
-      {/* Terminal panel */}
+      {/* Terminal splitter + panel */}
       {terminalOpen && (
-        <div style={{ height: 200, minHeight: 200, flexShrink: 0, borderTop: '1px solid', background: 'red' }}>
-          <Terminal
-            ref={terminalRef}
-            onData={(data) => window.roamer.ptyWrite(data)}
-            options={{ fontSize: 13 }}
-            style={{ height: '100%', width: '100%' }}
+        <>
+          <div
+            style={{ height: 6, cursor: 'row-resize', flexShrink: 0 }}
+            className="bg-base-300 hover:bg-primary active:bg-primary"
+            onMouseDown={() => {
+              dragging.current = true
+              const onMove = (e: MouseEvent) => {
+                if (!dragging.current) return
+                const bottom = window.innerHeight - e.clientY
+                setTermHeight(Math.max(80, Math.min(bottom, window.innerHeight - 150)))
+              }
+              const onUp = () => {
+                dragging.current = false
+                document.removeEventListener('mousemove', onMove)
+                document.removeEventListener('mouseup', onUp)
+                document.body.style.cursor = ''
+                document.body.style.userSelect = ''
+              }
+              document.body.style.cursor = 'row-resize'
+              document.body.style.userSelect = 'none'
+              document.addEventListener('mousemove', onMove)
+              document.addEventListener('mouseup', onUp)
+            }}
           />
-        </div>
+          <div
+            ref={termContainerRef}
+            style={{ height: termHeight, flexShrink: 0 }}
+          />
+        </>
       )}
 
       {/* Status bar */}
