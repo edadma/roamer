@@ -555,6 +555,19 @@ export default function FilePanel({ panel, focused, onFocus, onDrop, onFileClick
           <span style={{ width: 160, textAlign: 'right' }}>Modified</span>
         </div>
       )}
+      {panel.visibleEntries.length === 0 && (
+        <div style={{
+          gridColumn: '1 / -1',
+          display: 'flex',
+          alignItems: 'center',
+          justifyContent: 'center',
+          padding: 40,
+          color: 'oklch(0.5 0 0)',
+          fontSize: 13,
+        }}>
+          This folder is empty
+        </div>
+      )}
       {panel.visibleEntries.map((entry, index) => {
         const Icon = getFileIcon(entry.extension, entry.isDirectory)
         const isSelected = panel.selected.has(entry.path)

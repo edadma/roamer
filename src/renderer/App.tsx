@@ -256,6 +256,20 @@ export default function App() {
     return () => document.removeEventListener('mouseup', refocus)
   }, [])
 
+  // Update window title with current path
+  useEffect(() => {
+    if (!active.currentPath) return
+    const home = active.currentPath.replace(/^\/Users\/[^/]+/, '~')
+    document.title = `Roamer — ${home}`
+  }, [active.currentPath])
+
+  // Auto-dismiss errors after 5 seconds
+  useEffect(() => {
+    if (!active.error) return
+    const timer = setTimeout(() => active.setError(null), 5000)
+    return () => clearTimeout(timer)
+  }, [active.error])
+
   // Escape key — Electron/Chromium swallows it on macOS, so we get it via IPC
   // and re-dispatch as a synthetic event so all onKeyDown handlers work
   useEffect(() => {
@@ -305,7 +319,11 @@ export default function App() {
 
       const key = e.key.toLowerCase()
 
-      if (key === 'c' && active.selected.size > 0) {
+      if (key === 'a') {
+        e.preventDefault()
+        e.stopPropagation()
+        active.setSelected(new Set(active.visibleEntries.map((e) => e.path)))
+      } else if (key === 'c' && active.selected.size > 0) {
         e.preventDefault()
         e.stopPropagation()
         setClipboard({ paths: [...active.selected], mode: 'copy' })
@@ -444,6 +462,7 @@ export default function App() {
           icon={<ArrowLeftIcon />}
           onClick={active.goBack}
           disabled={active.history.length === 0}
+          title="Back"
         />
         <Button
           variant="ghost"
@@ -452,6 +471,7 @@ export default function App() {
           icon={<ArrowRightIcon />}
           onClick={active.goForward}
           disabled={active.forwardHistory.length === 0}
+          title="Forward"
         />
         <Button
           variant="ghost"
@@ -459,6 +479,7 @@ export default function App() {
           shape="square"
           icon={<ArrowUpIcon />}
           onClick={active.goUp}
+          title="Up"
         />
         <PathBar currentPath={active.currentPath} onNavigate={active.navigate} onEditStart={() => active.setError(null)} />
         <Button
@@ -467,6 +488,7 @@ export default function App() {
           shape="square"
           icon={active.viewMode === 'grid' ? <ListBulletIcon /> : <Squares2X2Icon />}
           onClick={() => active.setViewMode(active.viewMode === 'grid' ? 'list' : 'grid')}
+          title={active.viewMode === 'grid' ? 'List view' : 'Grid view'}
         />
         <Button
           variant="ghost"
@@ -475,6 +497,7 @@ export default function App() {
           icon={<ViewColumnsIcon />}
           onClick={() => setSplitView((v) => !v)}
           className={splitView ? 'btn-active' : ''}
+          title="Split view"
         />
       </div>
 
