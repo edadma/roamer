@@ -177,7 +177,7 @@ export default function App() {
     fitAddonRef.current = fitAddon
     term.loadAddon(fitAddon)
     term.open(node)
-    requestAnimationFrame(() => fitAddon.fit())
+    requestAnimationFrame(() => { fitAddon.fit(); term.focus() })
     xtermRef.current = term
 
     term.onData((data) => window.roamer.ptyWrite(data))
@@ -189,6 +189,18 @@ export default function App() {
     const observer = new ResizeObserver(() => fitAddon.fit())
     observer.observe(node)
     resizeObserverRef.current = observer
+  }, [])
+
+  // Keep terminal focused after UI interactions
+  useEffect(() => {
+    const refocus = (e: MouseEvent) => {
+      // Don't steal focus from the path bar input
+      if ((e.target as HTMLElement).tagName === 'INPUT') return
+      // Delay to let click handlers run first
+      requestAnimationFrame(() => xtermRef.current?.focus())
+    }
+    document.addEventListener('mouseup', refocus)
+    return () => document.removeEventListener('mouseup', refocus)
   }, [])
 
   // Spawn PTY once we have a path
@@ -315,6 +327,7 @@ export default function App() {
       <div className="flex items-center gap-2 px-3 py-1 border-t border-base-300 text-xs shrink-0">
         <Text size="xs" type="secondary">
           {active.visibleEntries.length} items
+          {active.selected.size > 0 && ` (${active.selected.size} selected)`}
           {!active.showHidden && active.entries.length !== active.visibleEntries.length &&
             ` (${active.entries.length - active.visibleEntries.length} hidden)`}
         </Text>

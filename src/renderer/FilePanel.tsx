@@ -12,6 +12,8 @@ export interface FilePanelState {
   showHidden: boolean
   history: string[]
   forwardHistory: string[]
+  selected: Set<string>
+  setSelected: (s: Set<string>) => void
   navigate: (path: string) => void
   goBack: () => void
   goForward: () => void
@@ -28,6 +30,7 @@ export function useFilePanel(initialPath: string): FilePanelState {
   const [history, setHistory] = useState<string[]>([])
   const [forwardHistory, setForwardHistory] = useState<string[]>([])
   const [error, setError] = useState<string | null>(null)
+  const [selected, setSelected] = useState<Set<string>>(new Set())
 
   useEffect(() => {
     if (!currentPath) return
@@ -37,6 +40,7 @@ export function useFilePanel(initialPath: string): FilePanelState {
         return a.name.localeCompare(b.name)
       })
       setEntries(sorted)
+      setSelected(new Set()) // clear selection on directory change
     }).catch(() => {
       const badPath = currentPath
       if (history.length > 0) {
@@ -48,7 +52,6 @@ export function useFilePanel(initialPath: string): FilePanelState {
     })
   }, [currentPath])
 
-  // Update path when initialPath changes (e.g. first load)
   useEffect(() => {
     if (initialPath && !currentPath) setCurrentPath(initialPath)
   }, [initialPath])
@@ -89,6 +92,7 @@ export function useFilePanel(initialPath: string): FilePanelState {
 
   return {
     currentPath, entries, visibleEntries, showHidden, history, forwardHistory,
+    selected, setSelected,
     navigate, goBack, goForward, goUp, setShowHidden, error, setError,
   }
 }
@@ -100,8 +104,144 @@ interface FilePanelProps {
 }
 
 export default function FilePanel({ panel, focused, onFocus }: FilePanelProps) {
+  const containerRef = useRef<HTMLDivElement>(null)
+  const lastClickedIndex = useRef<number>(-1)
+  const wasRubberBand = useRef(false)
+
+  // Rubber band state
+  const [rubberBand, setRubberBand] = useState<{ startX: number; startY: number; x: number; y: number } | null>(null)
+  const rbStart = useRef<{ x: number; y: number } | null>(null)
+  const itemRects = useRef<Map<string, DOMRect>>(new Map())
+
+  const handleItemClick = (e: React.MouseEvent, entry: FileEntry, index: number) => {
+    e.stopPropagation()
+    onFocus()
+
+    const isMeta = e.metaKey || e.ctrlKey
+    const isShift = e.shiftKey
+
+    if (isShift && lastClickedIndex.current >= 0) {
+      // Range select
+      const start = Math.min(lastClickedIndex.current, index)
+      const end = Math.max(lastClickedIndex.current, index)
+      const newSet = new Set(panel.selected)
+      for (let i = start; i <= end; i++) {
+        newSet.add(panel.visibleEntries[i].path)
+      }
+      panel.setSelected(newSet)
+    } else if (isMeta) {
+      // Toggle individual
+      const newSet = new Set(panel.selected)
+      if (newSet.has(entry.path)) {
+        newSet.delete(entry.path)
+      } else {
+        newSet.add(entry.path)
+      }
+      panel.setSelected(newSet)
+      lastClickedIndex.current = index
+    } else {
+      // Single select
+      panel.setSelected(new Set([entry.path]))
+      lastClickedIndex.current = index
+    }
+  }
+
+  const handleBackgroundClick = (e: React.MouseEvent) => {
+    if (wasRubberBand.current) {
+      wasRubberBand.current = false
+      return
+    }
+    if (e.target === containerRef.current) {
+      panel.setSelected(new Set())
+      lastClickedIndex.current = -1
+    }
+    onFocus()
+  }
+
+  // Rubber band selection
+  const handleMouseDown = (e: React.MouseEvent) => {
+    // Only start rubber band on background (not on items)
+    if (e.target !== containerRef.current) return
+    if (e.button !== 0) return
+
+    const rect = containerRef.current!.getBoundingClientRect()
+    const scrollTop = containerRef.current!.scrollTop
+    const scrollLeft = containerRef.current!.scrollLeft
+    const x = e.clientX - rect.left + scrollLeft
+    const y = e.clientY - rect.top + scrollTop
+    rbStart.current = { x, y }
+
+    // Snapshot item positions
+    const rects = new Map<string, DOMRect>()
+    containerRef.current!.querySelectorAll('[data-path]').forEach((el) => {
+      const path = (el as HTMLElement).dataset.path!
+      const r = el.getBoundingClientRect()
+      rects.set(path, new DOMRect(
+        r.left - rect.left + scrollLeft,
+        r.top - rect.top + scrollTop,
+        r.width,
+        r.height,
+      ))
+    })
+    itemRects.current = rects
+
+    if (!e.metaKey && !e.ctrlKey && !e.shiftKey) {
+      panel.setSelected(new Set())
+    }
+
+    const onMove = (me: MouseEvent) => {
+      if (!rbStart.current) return
+      wasRubberBand.current = true
+      const cx = me.clientX - rect.left + containerRef.current!.scrollLeft
+      const cy = me.clientY - rect.top + containerRef.current!.scrollTop
+      const band = {
+        startX: rbStart.current.x,
+        startY: rbStart.current.y,
+        x: cx,
+        y: cy,
+      }
+      setRubberBand(band)
+
+      // Calculate which items intersect
+      const left = Math.min(band.startX, band.x)
+      const right = Math.max(band.startX, band.x)
+      const top = Math.min(band.startY, band.y)
+      const bottom = Math.max(band.startY, band.y)
+
+      const newSet = new Set<string>()
+      itemRects.current.forEach((r, path) => {
+        if (r.left < right && r.left + r.width > left && r.top < bottom && r.top + r.height > top) {
+          newSet.add(path)
+        }
+      })
+      panel.setSelected(newSet)
+    }
+
+    const onUp = () => {
+      rbStart.current = null
+      setRubberBand(null)
+      document.removeEventListener('mousemove', onMove)
+      document.removeEventListener('mouseup', onUp)
+    }
+
+    document.addEventListener('mousemove', onMove)
+    document.addEventListener('mouseup', onUp)
+  }
+
+  const rbStyle = rubberBand ? {
+    position: 'absolute' as const,
+    left: Math.min(rubberBand.startX, rubberBand.x),
+    top: Math.min(rubberBand.startY, rubberBand.y),
+    width: Math.abs(rubberBand.x - rubberBand.startX),
+    height: Math.abs(rubberBand.y - rubberBand.startY),
+    border: '1px solid oklch(0.65 0.2 250)',
+    backgroundColor: 'oklch(0.65 0.2 250 / 0.15)',
+    pointerEvents: 'none' as const,
+  } : null
+
   return (
     <div
+      ref={containerRef}
       className="h-full overflow-auto p-3"
       style={{
         display: 'grid',
@@ -110,14 +250,19 @@ export default function FilePanel({ panel, focused, onFocus }: FilePanelProps) {
         alignContent: 'start',
         outline: focused ? '2px solid oklch(0.65 0.2 250)' : '2px solid transparent',
         outlineOffset: '-2px',
+        position: 'relative',
       }}
-      onClick={onFocus}
+      onClick={handleBackgroundClick}
+      onMouseDown={handleMouseDown}
     >
-      {panel.visibleEntries.map((entry) => {
+      {panel.visibleEntries.map((entry, index) => {
         const Icon = getFileIcon(entry.extension, entry.isDirectory)
+        const isSelected = panel.selected.has(entry.path)
         return (
           <button
             key={entry.name}
+            data-path={entry.path}
+            onClick={(e) => handleItemClick(e, entry, index)}
             onDoubleClick={() => {
               if (entry.isDirectory) panel.navigate(entry.path)
             }}
@@ -131,7 +276,9 @@ export default function FilePanel({ panel, focused, onFocus }: FilePanelProps) {
               padding: '8px 4px',
               height: 'auto',
               minHeight: '72px',
-              cursor: entry.isDirectory ? 'pointer' : 'default',
+              cursor: 'default',
+              backgroundColor: isSelected ? 'oklch(0.65 0.2 250 / 0.2)' : undefined,
+              borderRadius: 8,
             }}
           >
             <Icon
@@ -152,6 +299,7 @@ export default function FilePanel({ panel, focused, onFocus }: FilePanelProps) {
           </button>
         )
       })}
+      {rbStyle && <div style={rbStyle} />}
     </div>
   )
 }
