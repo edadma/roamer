@@ -23,6 +23,17 @@ function formatDate(iso: string): string {
   return new Date(iso).toLocaleDateString(undefined, { year: 'numeric', month: 'short', day: 'numeric', hour: '2-digit', minute: '2-digit' })
 }
 
+function gitStatusColor(status: string | undefined): string | undefined {
+  if (!status) return undefined
+  if (status === '??') return 'oklch(0.6 0.1 150)' // untracked — muted green
+  if (status.startsWith('M') || status.endsWith('M')) return 'oklch(0.75 0.15 60)' // modified — orange
+  if (status.startsWith('A')) return 'oklch(0.7 0.2 150)' // staged/added — green
+  if (status.startsWith('D') || status.endsWith('D')) return 'oklch(0.65 0.2 25)' // deleted — red
+  if (status.startsWith('R')) return 'oklch(0.7 0.15 250)' // renamed — blue
+  if (status.includes('U')) return 'oklch(0.65 0.2 25)' // conflict — red
+  return 'oklch(0.75 0.15 60)' // any other change — orange
+}
+
 export type ViewMode = 'grid' | 'list'
 
 export interface FilePanelState {
@@ -42,6 +53,8 @@ export interface FilePanelState {
   refresh: () => void
   viewMode: ViewMode
   setViewMode: (mode: ViewMode) => void
+  gitStatus: Record<string, string>
+  gitBranch: string | null
   error: string | null
   setError: (e: string | null) => void
   newItem: { type: 'file' | 'folder' } | null
@@ -132,6 +145,22 @@ export function useFilePanel(initialPath: string): FilePanelState {
   }, [currentPath, navigate])
 
   const [viewMode, setViewMode] = useState<ViewMode>('grid')
+  const [gitStatus, setGitStatus] = useState<Record<string, string>>({})
+  const [gitBranch, setGitBranch] = useState<string | null>(null)
+
+  // Fetch git status when directory changes or entries refresh
+  useEffect(() => {
+    if (!currentPath) return
+    window.roamer.gitStatus(currentPath).then((result) => {
+      if (result) {
+        setGitStatus(result.files)
+        setGitBranch(result.branch)
+      } else {
+        setGitStatus({})
+        setGitBranch(null)
+      }
+    })
+  }, [currentPath, refreshCounter])
 
   const [newItem, setNewItem] = useState<{ type: 'file' | 'folder' } | null>(null)
 
@@ -196,6 +225,7 @@ export function useFilePanel(initialPath: string): FilePanelState {
     selected, setSelected,
     navigate, goBack, goForward, goUp, setShowHidden, refresh,
     viewMode, setViewMode,
+    gitStatus, gitBranch,
     error, setError,
     newItem, startNewItem, commitNewItem, cancelNewItem,
     renamingPath, lastRenamedTo, startRename, commitRename, cancelRename,
@@ -580,6 +610,7 @@ export default function FilePanel({ panel, focused, onFocus, onDrop, onFileClick
         const isSelected = panel.selected.has(entry.path)
         const isDropTarget = dropTarget === entry.path
         const isCut = cutPaths?.has(entry.path) ?? false
+        const gitColor = gitStatusColor(panel.gitStatus[entry.path])
         const bgColor = isSelected
           ? 'oklch(0.65 0.2 250 / 0.2)'
           : isDropTarget
@@ -604,7 +635,7 @@ export default function FilePanel({ panel, focused, onFocus, onDrop, onFileClick
               {panel.renamingPath === entry.path ? (
                 <div style={{ flex: 1 }}>{renameInput(entry)}</div>
               ) : (
-                <span style={{ flex: 1, overflow: 'hidden', textOverflow: 'ellipsis', whiteSpace: 'nowrap' }}>
+                <span style={{ flex: 1, overflow: 'hidden', textOverflow: 'ellipsis', whiteSpace: 'nowrap', color: gitColor }}>
                   {entry.name}
                 </span>
               )}
@@ -659,6 +690,7 @@ export default function FilePanel({ panel, focused, onFocus, onDrop, onFileClick
                   wordBreak: 'break-all',
                   lineHeight: '1.2',
                   maxWidth: '100%',
+                  color: gitColor,
                 }}
               >
                 {entry.name}

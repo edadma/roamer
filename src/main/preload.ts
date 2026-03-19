@@ -5,6 +5,7 @@ contextBridge.exposeInMainWorld('roamer', {
   readDirectory: (dirPath: string) => ipcRenderer.invoke('read-directory', dirPath),
   getHome: () => ipcRenderer.invoke('get-home'),
   getCwd: () => ipcRenderer.invoke('get-cwd'),
+  gitStatus: (dirPath: string) => ipcRenderer.invoke('git-status', dirPath),
   openFile: (filePath: string) => ipcRenderer.invoke('open-file', filePath),
   renameFile: (oldPath: string, newPath: string) => ipcRenderer.invoke('rename-file', oldPath, newPath),
   createFolder: (dirPath: string) => ipcRenderer.invoke('create-folder', dirPath),

@@ -109,6 +109,29 @@ ipcMain.handle('read-directory', async (_event, dirPath: string) => {
   return results
 })
 
+// Git status
+ipcMain.handle('git-status', async (_event, dirPath: string) => {
+  try {
+    // Check if inside a git repo
+    execSync('git rev-parse --git-dir', { cwd: dirPath, encoding: 'utf-8', stdio: 'pipe' })
+    // Get status
+    const output = execSync('git status --porcelain -uall', { cwd: dirPath, encoding: 'utf-8', stdio: 'pipe' })
+    const gitRoot = execSync('git rev-parse --show-toplevel', { cwd: dirPath, encoding: 'utf-8', stdio: 'pipe' }).trim()
+    const branch = execSync('git branch --show-current', { cwd: dirPath, encoding: 'utf-8', stdio: 'pipe' }).trim()
+    const files: Record<string, string> = {}
+    for (const line of output.split('\n')) {
+      if (!line) continue
+      const status = line.substring(0, 2)
+      const filePath = line.substring(3).split(' -> ').pop()! // handle renames
+      const fullPath = path.resolve(gitRoot, filePath)
+      files[fullPath] = status.trim()
+    }
+    return { files, branch }
+  } catch {
+    return null // not a git repo
+  }
+})
+
 // File info and preview
 ipcMain.handle('get-file-info', async (_event, filePath: string) => {
   const stat = await fs.stat(filePath)

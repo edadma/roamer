@@ -26,6 +26,7 @@ declare global {
       readDirectory: (path: string) => Promise<FileEntry[]>
       getHome: () => Promise<string>
       getCwd: () => Promise<string>
+      gitStatus: (dirPath: string) => Promise<{ files: Record<string, string>; branch: string } | null>
       openFile: (filePath: string) => Promise<void>
       renameFile: (oldPath: string, newPath: string) => Promise<void>
       createFolder: (dirPath: string) => Promise<void>
@@ -582,6 +583,11 @@ export default function App() {
 
       {/* Status bar */}
       <div className="flex items-center gap-2 px-3 py-1 border-t border-base-300 text-xs shrink-0">
+        {active.gitBranch && (
+          <Text size="xs" style={{ fontFamily: 'monospace', color: 'oklch(0.7 0.15 250)' }}>
+            ⎇ {active.gitBranch}
+          </Text>
+        )}
         <Text size="xs" type="secondary">
           {active.visibleEntries.length} items
           {active.selected.size > 0 && ` (${active.selected.size} selected)`}
