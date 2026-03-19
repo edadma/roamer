@@ -27,8 +27,7 @@ function formatDate(iso: string): string {
 }
 
 function formatPermissions(mode: number): string {
-  const perms = (mode & 0o777).toString(8)
-  return perms
+  return (mode & 0o777).toString(8)
 }
 
 interface InfoPanelProps {
@@ -58,9 +57,9 @@ export default function InfoPanel({ entry, onDismiss }: InfoPanelProps) {
   const Icon = getFileIcon(entry.extension, entry.isDirectory)
 
   return (
-    <div className="h-full overflow-auto border-l border-base-300" style={{ minWidth: 0 }}>
-      {/* Header */}
-      <div className="flex items-center gap-2 px-3 py-2 border-b border-base-300">
+    <div className="h-full border-l border-base-300" style={{ display: 'flex', flexDirection: 'column', minHeight: 0 }}>
+      {/* Header — fixed */}
+      <div className="flex items-center gap-2 px-3 py-2 border-b border-base-300" style={{ flexShrink: 0 }}>
         <Icon size="sm" className={entry.isDirectory ? 'text-warning' : 'text-base-content'} />
         <Text size="sm" style={{ fontWeight: 600, flex: 1, overflow: 'hidden', textOverflow: 'ellipsis', whiteSpace: 'nowrap' }}>
           {entry.name}
@@ -68,38 +67,39 @@ export default function InfoPanel({ entry, onDismiss }: InfoPanelProps) {
         <Button variant="ghost" size="sm" shape="square" icon={<XMarkIcon />} onClick={onDismiss} />
       </div>
 
-      {/* Image preview */}
-      {isImage && !entry.isDirectory && (
-        <div className="p-3 border-b border-base-300" style={{ display: 'flex', justifyContent: 'center' }}>
-          <img
-            src={`file://${entry.path}`}
-            style={{ maxWidth: '100%', maxHeight: 300, objectFit: 'contain', borderRadius: 4 }}
-          />
-        </div>
-      )}
+      {/* Preview area — scrollable, takes remaining space */}
+      <div style={{ flex: 1, minHeight: 0, overflow: 'auto' }}>
+        {/* Image preview */}
+        {isImage && !entry.isDirectory && (
+          <div className="p-3 border-b border-base-300" style={{ display: 'flex', justifyContent: 'center' }}>
+            <img
+              src={`file://${entry.path}`}
+              style={{ maxWidth: '100%', objectFit: 'contain', borderRadius: 4 }}
+            />
+          </div>
+        )}
 
-      {/* Text preview */}
-      {isText && preview !== null && (
-        <div className="p-3 border-b border-base-300">
-          <pre style={{
-            fontSize: 11,
-            lineHeight: 1.4,
-            whiteSpace: 'pre-wrap',
-            wordBreak: 'break-all',
-            maxHeight: 300,
-            overflow: 'auto',
-            margin: 0,
-            fontFamily: 'ui-monospace, SFMono-Regular, "SF Mono", Menlo, monospace',
-            color: 'oklch(0.7 0 0)',
-          }}>
-            {preview}
-          </pre>
-        </div>
-      )}
+        {/* Text preview */}
+        {isText && preview !== null && (
+          <div className="p-3 border-b border-base-300">
+            <pre style={{
+              fontSize: 11,
+              lineHeight: 1.4,
+              whiteSpace: 'pre-wrap',
+              wordBreak: 'break-all',
+              margin: 0,
+              fontFamily: 'ui-monospace, SFMono-Regular, "SF Mono", Menlo, monospace',
+              color: 'oklch(0.7 0 0)',
+            }}>
+              {preview}
+            </pre>
+          </div>
+        )}
+      </div>
 
-      {/* File details */}
+      {/* File details — fixed at bottom */}
       {info && (
-        <div className="p-3">
+        <div className="p-3 border-t border-base-300" style={{ flexShrink: 0 }}>
           <table style={{ fontSize: 12, width: '100%' }}>
             <tbody>
               <tr>

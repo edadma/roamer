@@ -119,6 +119,7 @@ export default function FilePanel({ panel, focused, onFocus, onDrop, onFileClick
   const containerRef = useRef<HTMLDivElement>(null)
   const lastClickedIndex = useRef<number>(-1)
   const wasRubberBand = useRef(false)
+  const clickTimer = useRef<ReturnType<typeof setTimeout> | null>(null)
   const [dropTarget, setDropTarget] = useState<string | null>(null) // path of folder being hovered
 
   // Rubber band state
@@ -169,7 +170,16 @@ export default function FilePanel({ panel, focused, onFocus, onDrop, onFileClick
       panel.setSelected(new Set([entry.path]))
       lastClickedIndex.current = index
     }
-    onFileClick?.(entry)
+    if (clickTimer.current) clearTimeout(clickTimer.current)
+    clickTimer.current = setTimeout(() => onFileClick?.(entry), 250)
+  }
+
+  const handleDoubleClick = (entry: FileEntry) => {
+    if (clickTimer.current) {
+      clearTimeout(clickTimer.current)
+      clickTimer.current = null
+    }
+    if (entry.isDirectory) panel.navigate(entry.path)
   }
 
   const handleBackgroundClick = (e: React.MouseEvent) => {
@@ -392,9 +402,7 @@ export default function FilePanel({ panel, focused, onFocus, onDrop, onFileClick
             onDragLeave={() => setDropTarget(null)}
             onDrop={(e) => handleFolderDrop(e, entry)}
             onClick={(e) => handleItemClick(e, entry, index)}
-            onDoubleClick={() => {
-              if (entry.isDirectory) panel.navigate(entry.path)
-            }}
+            onDoubleClick={() => handleDoubleClick(entry)}
             className="btn btn-ghost"
             style={{
               display: 'flex',
