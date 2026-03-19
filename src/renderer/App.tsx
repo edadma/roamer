@@ -29,6 +29,7 @@ declare global {
       copyFiles: (sources: string[], destDir: string) => Promise<{ src: string; dest: string; error?: string }[]>
       moveFiles: (sources: string[], destDir: string) => Promise<{ src: string; dest: string; error?: string }[]>
       trashFiles: (paths: string[]) => Promise<{ path: string; error?: string }[]>
+      restoreFromTrash: (items: { name: string; originalPath: string }[]) => Promise<{ path: string; error?: string }[]>
       ptySpawn: (cwd: string) => Promise<void>
       ptyWrite: (data: string) => void
       ptyResize: (cols: number, rows: number) => void
@@ -298,8 +299,17 @@ export default function App() {
               leftPanel.refresh()
               rightPanel.refresh()
             })
+          } else if (entry.type === 'trash') {
+            // Restore from trash
+            const items = entry.paths.map((p) => ({
+              name: p.split('/').pop()!,
+              originalPath: p,
+            }))
+            window.roamer.restoreFromTrash(items).then(() => {
+              leftPanel.refresh()
+              rightPanel.refresh()
+            })
           }
-          // trash undo not supported (OS manages trash)
           return newStack
         })
       }

@@ -117,6 +117,22 @@ ipcMain.handle('trash-files', async (_event, paths: string[]) => {
   return results
 })
 
+ipcMain.handle('restore-from-trash', async (_event, items: { name: string; originalPath: string }[]) => {
+  const home = app.getPath('home')
+  const trashDir = path.join(home, '.Trash')
+  const results: { path: string; error?: string }[] = []
+  for (const item of items) {
+    const trashPath = path.join(trashDir, item.name)
+    try {
+      await fs.rename(trashPath, item.originalPath)
+      results.push({ path: item.originalPath })
+    } catch (e: any) {
+      results.push({ path: item.originalPath, error: e.message })
+    }
+  }
+  return results
+})
+
 // Native drag
 ipcMain.on('start-drag', (event, filePaths: string[]) => {
   if (filePaths.length === 0) return
