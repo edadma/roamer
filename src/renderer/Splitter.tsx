@@ -1,0 +1,97 @@
+import { useRef, useState, useCallback, type ReactNode } from 'react'
+
+type Direction = 'horizontal' | 'vertical'
+
+interface SplitterProps {
+  direction: Direction
+  children: ReactNode[]
+  defaultSize?: number
+  size?: number
+  onSizeChange?: (size: number) => void
+  minSize?: number
+  className?: string
+}
+
+export default function Splitter({
+  direction,
+  children,
+  defaultSize = 200,
+  size: controlledSize,
+  onSizeChange,
+  minSize = 80,
+  className = '',
+}: SplitterProps) {
+  const [internalSize, setInternalSize] = useState(defaultSize)
+  const size = controlledSize ?? internalSize
+  const updateSize = useCallback((s: number) => {
+    if (onSizeChange) onSizeChange(s)
+    else setInternalSize(s)
+  }, [onSizeChange])
+
+  const dragging = useRef(false)
+  const containerRef = useRef<HTMLDivElement>(null)
+
+  const isVertical = direction === 'vertical'
+
+  const handleMouseDown = useCallback(() => {
+    dragging.current = true
+    document.body.style.cursor = isVertical ? 'row-resize' : 'col-resize'
+    document.body.style.userSelect = 'none'
+
+    const onMove = (e: MouseEvent) => {
+      if (!dragging.current || !containerRef.current) return
+      const rect = containerRef.current.getBoundingClientRect()
+      if (isVertical) {
+        const newSize = rect.bottom - e.clientY
+        updateSize(Math.max(minSize, Math.min(newSize, rect.height - minSize)))
+      } else {
+        const newSize = e.clientX - rect.left
+        updateSize(Math.max(minSize, Math.min(newSize, rect.width - minSize)))
+      }
+    }
+
+    const onUp = () => {
+      dragging.current = false
+      document.body.style.cursor = ''
+      document.body.style.userSelect = ''
+      document.removeEventListener('mousemove', onMove)
+      document.removeEventListener('mouseup', onUp)
+    }
+
+    document.addEventListener('mousemove', onMove)
+    document.addEventListener('mouseup', onUp)
+  }, [isVertical, minSize, updateSize])
+
+  const flexDir = isVertical ? 'column' : 'row'
+  const cursor = isVertical ? 'row-resize' : 'col-resize'
+  const gutterStyle = isVertical
+    ? { height: 6, flexShrink: 0, cursor }
+    : { width: 6, flexShrink: 0, cursor }
+
+  // For vertical: first child is flex-1, second child is fixed size (bottom)
+  // For horizontal: first child is fixed size (left), second child is flex-1
+  const firstStyle = isVertical
+    ? { flex: 1, minHeight: 0, overflow: 'hidden' }
+    : { width: size, minWidth: 0, flexShrink: 0, overflow: 'hidden' }
+  const secondStyle = isVertical
+    ? { height: size, flexShrink: 0, overflow: 'hidden' }
+    : { flex: 1, minWidth: 0, overflow: 'hidden' }
+
+  const [first, second] = children as [ReactNode, ReactNode]
+
+  return (
+    <div
+      ref={containerRef}
+      className={className}
+      style={{ display: 'flex', flexDirection: flexDir, height: '100%', width: '100%' }}
+    >
+      <div style={firstStyle as React.CSSProperties}>{first}</div>
+      <div
+        className="bg-base-300 hover:bg-primary active:bg-primary"
+        style={gutterStyle}
+        onMouseDown={handleMouseDown}
+      />
+      <div style={secondStyle as React.CSSProperties}>{second}</div>
+    </div>
+  )
+}

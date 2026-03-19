@@ -5,6 +5,7 @@ import { FitAddon } from '@xterm/addon-fit'
 import '@xterm/xterm/css/xterm.css'
 import { ArrowLeftIcon, ArrowRightIcon, ArrowUpIcon, PencilSquareIcon } from '@aster-ui/icons'
 import { getFileIcon } from './icons'
+import Splitter from './Splitter'
 import { initDb } from './db'
 import type { FileEntry } from './types'
 
@@ -123,10 +124,8 @@ export default function App() {
   const [dbReady, setDbReady] = useState(false)
   const [error, setError] = useState<string | null>(null)
   const [terminalOpen, setTerminalOpen] = useState(true)
-  const [termHeight, setTermHeight] = useState(200)
   const termContainerRef = useRef<HTMLDivElement>(null)
   const xtermRef = useRef<XTerm | null>(null)
-  const dragging = useRef(false)
 
   useEffect(() => {
     initDb().then(() => setDbReady(true))
@@ -294,89 +293,61 @@ export default function App() {
         </div>
       )}
 
-      {/* File grid */}
-      <div
-        className="flex-1 overflow-auto p-3"
-        style={{
-          display: 'grid',
-          gridTemplateColumns: 'repeat(auto-fill, minmax(90px, 1fr))',
-          gap: '2px',
-          alignContent: 'start',
-        }}
-      >
-        {visibleEntries.map((entry) => {
-          const Icon = getFileIcon(entry.extension, entry.isDirectory)
-          return (
-            <button
-              key={entry.name}
-              onDoubleClick={() => {
-                if (entry.isDirectory) navigate(entry.path)
-              }}
-              className="btn btn-ghost"
-              style={{
-                display: 'flex',
-                flexDirection: 'column',
-                alignItems: 'center',
-                justifyContent: 'flex-start',
-                gap: '6px',
-                padding: '8px 4px',
-                height: 'auto',
-                minHeight: '72px',
-                cursor: entry.isDirectory ? 'pointer' : 'default',
-              }}
-            >
-              <Icon
-                size="xl"
-                className={entry.isDirectory ? 'text-warning' : 'text-base-content'}
-              />
-              <Text
-                size="xs"
+      {/* Main content area with terminal */}
+      <Splitter direction="vertical" defaultSize={200} minSize={80} className="flex-1 min-h-0">
+        {/* File grid */}
+        <div
+          className="overflow-auto p-3 h-full"
+          style={{
+            display: 'grid',
+            gridTemplateColumns: 'repeat(auto-fill, minmax(90px, 1fr))',
+            gap: '2px',
+            alignContent: 'start',
+          }}
+        >
+          {visibleEntries.map((entry) => {
+            const Icon = getFileIcon(entry.extension, entry.isDirectory)
+            return (
+              <button
+                key={entry.name}
+                onDoubleClick={() => {
+                  if (entry.isDirectory) navigate(entry.path)
+                }}
+                className="btn btn-ghost"
                 style={{
-                  textAlign: 'center',
-                  wordBreak: 'break-all',
-                  lineHeight: '1.2',
-                  maxWidth: '100%',
+                  display: 'flex',
+                  flexDirection: 'column',
+                  alignItems: 'center',
+                  justifyContent: 'flex-start',
+                  gap: '6px',
+                  padding: '8px 4px',
+                  height: 'auto',
+                  minHeight: '72px',
+                  cursor: entry.isDirectory ? 'pointer' : 'default',
                 }}
               >
-                {entry.name}
-              </Text>
-            </button>
-          )
-        })}
-      </div>
-
-      {/* Terminal splitter + panel */}
-      {terminalOpen && (
-        <>
-          <div
-            style={{ height: 6, cursor: 'row-resize', flexShrink: 0 }}
-            className="bg-base-300 hover:bg-primary active:bg-primary"
-            onMouseDown={() => {
-              dragging.current = true
-              const onMove = (e: MouseEvent) => {
-                if (!dragging.current) return
-                const bottom = window.innerHeight - e.clientY
-                setTermHeight(Math.max(80, Math.min(bottom, window.innerHeight - 150)))
-              }
-              const onUp = () => {
-                dragging.current = false
-                document.removeEventListener('mousemove', onMove)
-                document.removeEventListener('mouseup', onUp)
-                document.body.style.cursor = ''
-                document.body.style.userSelect = ''
-              }
-              document.body.style.cursor = 'row-resize'
-              document.body.style.userSelect = 'none'
-              document.addEventListener('mousemove', onMove)
-              document.addEventListener('mouseup', onUp)
-            }}
-          />
-          <div
-            ref={termContainerRef}
-            style={{ height: termHeight, flexShrink: 0 }}
-          />
-        </>
-      )}
+                <Icon
+                  size="xl"
+                  className={entry.isDirectory ? 'text-warning' : 'text-base-content'}
+                />
+                <Text
+                  size="xs"
+                  style={{
+                    textAlign: 'center',
+                    wordBreak: 'break-all',
+                    lineHeight: '1.2',
+                    maxWidth: '100%',
+                  }}
+                >
+                  {entry.name}
+                </Text>
+              </button>
+            )
+          })}
+        </div>
+        {/* Terminal panel */}
+        <div ref={termContainerRef} className="h-full" />
+      </Splitter>
 
       {/* Status bar */}
       <div className="flex items-center gap-2 px-3 py-1 border-t border-base-300 text-xs shrink-0">
