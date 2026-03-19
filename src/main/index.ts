@@ -1,6 +1,7 @@
 import { app, BrowserWindow, ipcMain } from 'electron'
 import path from 'path'
 import fs from 'fs/promises'
+import * as pty from 'node-pty'
 
 function createWindow() {
   const win = new BrowserWindow({
@@ -58,6 +59,45 @@ ipcMain.handle('read-directory', async (_event, dirPath: string) => {
     })
   )
   return results
+})
+
+// PTY management
+let ptyProcess: pty.IPty | null = null
+
+ipcMain.handle('pty-spawn', (_event, cwd: string) => {
+  if (ptyProcess) {
+    ptyProcess.kill()
+  }
+  const shell = process.env.SHELL || '/bin/zsh'
+  ptyProcess = pty.spawn(shell, [], {
+    name: 'xterm-256color',
+    cols: 80,
+    rows: 24,
+    cwd,
+    env: process.env as Record<string, string>,
+  })
+  ptyProcess.onData((data) => {
+    const wins = BrowserWindow.getAllWindows()
+    if (wins.length > 0) {
+      wins[0].webContents.send('pty-data', data)
+    }
+  })
+  ptyProcess.onExit(() => {
+    ptyProcess = null
+  })
+})
+
+ipcMain.on('pty-write', (_event, data: string) => {
+  ptyProcess?.write(data)
+})
+
+ipcMain.on('pty-resize', (_event, cols: number, rows: number) => {
+  ptyProcess?.resize(cols, rows)
+})
+
+ipcMain.handle('pty-kill', () => {
+  ptyProcess?.kill()
+  ptyProcess = null
 })
 
 app.whenReady().then(createWindow)

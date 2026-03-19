@@ -18,10 +18,13 @@ export type Place = InferSelect<typeof places>
 export type NewPlace = InferInsert<typeof places>
 
 export async function initDb() {
-  await db.createTable(places)
+  try {
+    await db.createTable(places)
+  } catch {
+    return // table already exists (HMR reload)
+  }
 
-  // Seed default places
-  const home = process.env.HOME ?? '/home'
+  const home = await window.roamer.getHome()
   await db.insert(places).values(
     { name: 'Home', path: home, icon: 'home', sortOrder: 0, isDefault: true },
     { name: 'Desktop', path: `${home}/Desktop`, icon: 'desktop', sortOrder: 1, isDefault: true },

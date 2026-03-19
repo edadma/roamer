@@ -1,5 +1,8 @@
 import { useEffect, useState, useCallback, useRef } from 'react'
 import { Typography, Button } from 'asterui'
+import { Terminal as XTerm } from '@xterm/xterm'
+import { FitAddon } from '@xterm/addon-fit'
+import '@xterm/xterm/css/xterm.css'
 import { ArrowLeftIcon, ArrowRightIcon, ArrowUpIcon, PencilSquareIcon } from '@aster-ui/icons'
 import { getFileIcon } from './icons'
 import { initDb } from './db'
@@ -14,6 +17,11 @@ declare global {
       readDirectory: (path: string) => Promise<FileEntry[]>
       getHome: () => Promise<string>
       getCwd: () => Promise<string>
+      ptySpawn: (cwd: string) => Promise<void>
+      ptyWrite: (data: string) => void
+      ptyResize: (cols: number, rows: number) => void
+      ptyKill: () => Promise<void>
+      onPtyData: (callback: (data: string) => void) => () => void
     }
   }
 }
@@ -114,6 +122,9 @@ export default function App() {
   const [forwardHistory, setForwardHistory] = useState<string[]>([])
   const [dbReady, setDbReady] = useState(false)
   const [error, setError] = useState<string | null>(null)
+  const [terminalOpen, setTerminalOpen] = useState(true)
+  const termContainerRef = useRef<HTMLDivElement>(null)
+  const xtermRef = useRef<XTerm | null>(null)
 
   useEffect(() => {
     initDb().then(() => setDbReady(true))
@@ -121,6 +132,32 @@ export default function App() {
       setCurrentPath(cwd)
     })
   }, [])
+
+  // Spawn PTY and wire up data flow
+  useEffect(() => {
+    if (!currentPath) return
+    window.roamer.ptySpawn(currentPath)
+    const cleanup = window.roamer.onPtyData((data) => {
+      terminalRef.current?.write(data)
+    })
+    return () => {
+      cleanup()
+      window.roamer.ptyKill()
+    }
+  }, []) // spawn once on mount
+
+  // cd when directory changes (after initial spawn)
+  const prevPath = useRef('')
+  useEffect(() => {
+    if (!currentPath || !prevPath.current) {
+      prevPath.current = currentPath
+      return
+    }
+    if (currentPath !== prevPath.current) {
+      prevPath.current = currentPath
+      window.roamer.ptyWrite(`cd ${currentPath.replace(/ /g, '\\ ')}\n`)
+    }
+  }, [currentPath])
 
   useEffect(() => {
     if (!currentPath) return
@@ -274,6 +311,18 @@ export default function App() {
           )
         })}
       </div>
+
+      {/* Terminal panel */}
+      {terminalOpen && (
+        <div style={{ height: 200, minHeight: 200, flexShrink: 0, borderTop: '1px solid', background: 'red' }}>
+          <Terminal
+            ref={terminalRef}
+            onData={(data) => window.roamer.ptyWrite(data)}
+            options={{ fontSize: 13 }}
+            style={{ height: '100%', width: '100%' }}
+          />
+        </div>
+      )}
 
       {/* Status bar */}
       <div className="flex items-center gap-2 px-3 py-1 border-t border-base-300 text-xs shrink-0">
