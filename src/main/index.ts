@@ -62,6 +62,30 @@ ipcMain.handle('read-directory', async (_event, dirPath: string) => {
   return results
 })
 
+// File info and preview
+ipcMain.handle('get-file-info', async (_event, filePath: string) => {
+  const stat = await fs.stat(filePath)
+  return {
+    size: stat.size,
+    modifiedAt: stat.mtime.toISOString(),
+    createdAt: stat.birthtime.toISOString(),
+    isDirectory: stat.isDirectory(),
+    mode: stat.mode,
+  }
+})
+
+ipcMain.handle('read-file-preview', async (_event, filePath: string, maxBytes: number) => {
+  const fh = await fs.open(filePath, 'r')
+  const buf = Buffer.alloc(maxBytes)
+  const { bytesRead } = await fh.read(buf, 0, maxBytes, 0)
+  await fh.close()
+  return buf.slice(0, bytesRead).toString('utf-8')
+})
+
+ipcMain.handle('get-file-url', (_event, filePath: string) => {
+  return `file://${filePath}`
+})
+
 // File operations
 ipcMain.handle('copy-files', async (_event, sources: string[], destDir: string) => {
   const results: { src: string; dest: string; error?: string }[] = []

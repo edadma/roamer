@@ -9,6 +9,7 @@ interface SplitterProps {
   size?: number
   onSizeChange?: (size: number) => void
   minSize?: number
+  reverse?: boolean
   className?: string
 }
 
@@ -19,6 +20,7 @@ export default function Splitter({
   size: controlledSize,
   onSizeChange,
   minSize = 80,
+  reverse = false,
   className = '',
 }: SplitterProps) {
   const [internalSize, setInternalSize] = useState(defaultSize)
@@ -44,6 +46,9 @@ export default function Splitter({
       if (isVertical) {
         const newSize = rect.bottom - e.clientY
         updateSize(Math.max(minSize, Math.min(newSize, rect.height - minSize)))
+      } else if (reverse) {
+        const newSize = rect.right - e.clientX
+        updateSize(Math.max(minSize, Math.min(newSize, rect.width - minSize)))
       } else {
         const newSize = e.clientX - rect.left
         updateSize(Math.max(minSize, Math.min(newSize, rect.width - minSize)))
@@ -68,14 +73,18 @@ export default function Splitter({
     ? { height: 6, flexShrink: 0, cursor }
     : { width: 6, flexShrink: 0, cursor }
 
-  // For vertical: first child is flex-1, second child is fixed size (bottom)
-  // For horizontal: first child is fixed size (left), second child is flex-1
-  const firstStyle = isVertical
-    ? { flex: 1, minHeight: 0, overflow: 'hidden' }
-    : { width: size, minWidth: 0, flexShrink: 0, overflow: 'hidden' }
-  const secondStyle = isVertical
+  // Fixed-size panel vs flex panel
+  const fixedStyle = isVertical
     ? { height: size, flexShrink: 0, overflow: 'hidden' }
+    : { width: size, minWidth: 0, flexShrink: 0, overflow: 'hidden' }
+  const flexStyle = isVertical
+    ? { flex: 1, minHeight: 0, overflow: 'hidden' }
     : { flex: 1, minWidth: 0, overflow: 'hidden' }
+
+  // Default: first=fixed, second=flex. Reverse: first=flex, second=fixed.
+  // Exception: vertical default is first=flex, second=fixed (bottom panel).
+  const firstStyle = (isVertical !== reverse) ? flexStyle : fixedStyle
+  const secondStyle = (isVertical !== reverse) ? fixedStyle : flexStyle
 
   const [first, second] = children as [ReactNode, ReactNode]
 

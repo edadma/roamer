@@ -6,6 +6,7 @@ import '@xterm/xterm/css/xterm.css'
 import { ArrowLeftIcon, ArrowRightIcon, ArrowUpIcon, PencilSquareIcon, HomeIcon, ComputerDesktopIcon, DocumentIcon, ArrowDownTrayIcon, FolderIcon, ViewColumnsIcon } from '@aster-ui/icons'
 import Splitter from './Splitter'
 import FilePanel, { useFilePanel, type FilePanelState } from './FilePanel'
+import InfoPanel from './InfoPanel'
 import { initDb, getPlaces, type Place } from './db'
 import type { FileEntry } from './types'
 
@@ -25,6 +26,8 @@ declare global {
       readDirectory: (path: string) => Promise<FileEntry[]>
       getHome: () => Promise<string>
       getCwd: () => Promise<string>
+      getFileInfo: (filePath: string) => Promise<{ size: number; modifiedAt: string; createdAt: string; isDirectory: boolean; mode: number }>
+      readFilePreview: (filePath: string, maxBytes: number) => Promise<string>
       startDrag: (filePaths: string[]) => void
       copyFiles: (sources: string[], destDir: string) => Promise<{ src: string; dest: string; error?: string }[]>
       moveFiles: (sources: string[], destDir: string) => Promise<{ src: string; dest: string; error?: string }[]>
@@ -134,6 +137,7 @@ export default function App() {
   const [placesList, setPlacesList] = useState<Place[]>([])
   const [splitView, setSplitView] = useState(false)
   const [activePanel, setActivePanel] = useState<'left' | 'right'>('left')
+  const [inspectedFile, setInspectedFile] = useState<FileEntry | null>(null)
 
   const leftPanel = useFilePanel(cwd)
   const rightPanel = useFilePanel(cwd)
@@ -448,16 +452,34 @@ export default function App() {
           </ul>
         </div>
 
-        {/* File grid(s) + terminal */}
+        {/* File grid(s) + info panel + terminal */}
         <Splitter direction="vertical" defaultSize={200} minSize={80}>
-          {/* File grid area */}
-          {splitView ? (
-            <Splitter direction="horizontal" defaultSize={400} minSize={200}>
-              <FilePanel panel={leftPanel} focused={activePanel === 'left'} onFocus={() => setActivePanel('left')} onDrop={handleFileDrop} />
-              <FilePanel panel={rightPanel} focused={activePanel === 'right'} onFocus={() => setActivePanel('right')} onDrop={handleFileDrop} />
+          {/* File grids + info panel */}
+          {inspectedFile ? (
+            <Splitter direction="horizontal" defaultSize={280} minSize={200} reverse>
+              {/* File grids */}
+              {splitView ? (
+                <Splitter direction="horizontal" defaultSize={400} minSize={200}>
+                  <FilePanel panel={leftPanel} focused={activePanel === 'left'} onFocus={() => setActivePanel('left')} onDrop={handleFileDrop} onFileClick={setInspectedFile} />
+                  <FilePanel panel={rightPanel} focused={activePanel === 'right'} onFocus={() => setActivePanel('right')} onDrop={handleFileDrop} onFileClick={setInspectedFile} />
+                </Splitter>
+              ) : (
+                <FilePanel panel={leftPanel} focused={true} onFocus={() => setActivePanel('left')} onDrop={handleFileDrop} onFileClick={setInspectedFile} />
+              )}
+              {/* Info panel */}
+              <InfoPanel entry={inspectedFile} onDismiss={() => setInspectedFile(null)} />
             </Splitter>
           ) : (
-            <FilePanel panel={leftPanel} focused={true} onFocus={() => setActivePanel('left')} onDrop={handleFileDrop} />
+            <>
+              {splitView ? (
+                <Splitter direction="horizontal" defaultSize={400} minSize={200}>
+                  <FilePanel panel={leftPanel} focused={activePanel === 'left'} onFocus={() => setActivePanel('left')} onDrop={handleFileDrop} onFileClick={setInspectedFile} />
+                  <FilePanel panel={rightPanel} focused={activePanel === 'right'} onFocus={() => setActivePanel('right')} onDrop={handleFileDrop} onFileClick={setInspectedFile} />
+                </Splitter>
+              ) : (
+                <FilePanel panel={leftPanel} focused={true} onFocus={() => setActivePanel('left')} onDrop={handleFileDrop} onFileClick={setInspectedFile} />
+              )}
+            </>
           )}
           {/* Terminal panel */}
           <div ref={termContainerCallback} className="h-full" />

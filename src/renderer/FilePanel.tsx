@@ -112,9 +112,10 @@ interface FilePanelProps {
   focused: boolean
   onFocus: () => void
   onDrop?: (sourcePaths: string[], destDir: string, copy: boolean) => void
+  onFileClick?: (entry: FileEntry | null) => void
 }
 
-export default function FilePanel({ panel, focused, onFocus, onDrop }: FilePanelProps) {
+export default function FilePanel({ panel, focused, onFocus, onDrop, onFileClick }: FilePanelProps) {
   const containerRef = useRef<HTMLDivElement>(null)
   const lastClickedIndex = useRef<number>(-1)
   const wasRubberBand = useRef(false)
@@ -168,6 +169,7 @@ export default function FilePanel({ panel, focused, onFocus, onDrop }: FilePanel
       panel.setSelected(new Set([entry.path]))
       lastClickedIndex.current = index
     }
+    onFileClick?.(entry)
   }
 
   const handleBackgroundClick = (e: React.MouseEvent) => {
@@ -178,6 +180,7 @@ export default function FilePanel({ panel, focused, onFocus, onDrop }: FilePanel
     if (e.target === containerRef.current) {
       panel.setSelected(new Set())
       lastClickedIndex.current = -1
+      onFileClick?.(null)
     }
     onFocus()
   }

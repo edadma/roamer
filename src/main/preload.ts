@@ -5,6 +5,8 @@ contextBridge.exposeInMainWorld('roamer', {
   readDirectory: (dirPath: string) => ipcRenderer.invoke('read-directory', dirPath),
   getHome: () => ipcRenderer.invoke('get-home'),
   getCwd: () => ipcRenderer.invoke('get-cwd'),
+  getFileInfo: (filePath: string) => ipcRenderer.invoke('get-file-info', filePath),
+  readFilePreview: (filePath: string, maxBytes: number) => ipcRenderer.invoke('read-file-preview', filePath, maxBytes),
   startDrag: (filePaths: string[]) => ipcRenderer.send('start-drag', filePaths),
   copyFiles: (sources: string[], destDir: string) => ipcRenderer.invoke('copy-files', sources, destDir),
   moveFiles: (sources: string[], destDir: string) => ipcRenderer.invoke('move-files', sources, destDir),
