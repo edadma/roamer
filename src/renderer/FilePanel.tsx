@@ -60,6 +60,12 @@ export function useFilePanel(initialPath: string): FilePanelState {
     if (initialPath && !currentPath) setCurrentPath(initialPath)
   }, [initialPath])
 
+  // Watch current directory for changes
+  useEffect(() => {
+    if (!currentPath) return
+    return window.roamer.watchDirectory(currentPath, refresh)
+  }, [currentPath, refresh])
+
   const visibleEntries = showHidden
     ? entries
     : entries.filter((e) => !e.name.startsWith('.'))

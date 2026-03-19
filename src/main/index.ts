@@ -1,6 +1,7 @@
 import { app, BrowserWindow, ipcMain, shell } from 'electron'
 import path from 'path'
 import fs from 'fs/promises'
+import { watch, type FSWatcher } from 'fs'
 import * as pty from 'node-pty'
 
 function createWindow() {
@@ -131,6 +132,36 @@ ipcMain.handle('restore-from-trash', async (_event, items: { name: string; origi
     }
   }
   return results
+})
+
+// Directory watching
+const watchers = new Map<string, FSWatcher>()
+
+ipcMain.on('watch-directory', (event, dirPath: string) => {
+  if (watchers.has(dirPath)) return
+  try {
+    let debounce: ReturnType<typeof setTimeout> | null = null
+    const watcher = watch(dirPath, () => {
+      if (debounce) clearTimeout(debounce)
+      debounce = setTimeout(() => {
+        const wins = BrowserWindow.getAllWindows()
+        if (wins.length > 0) {
+          wins[0].webContents.send(`fs-change-${dirPath}`)
+        }
+      }, 200)
+    })
+    watchers.set(dirPath, watcher)
+  } catch {
+    // Directory may not exist
+  }
+})
+
+ipcMain.on('unwatch-directory', (_event, dirPath: string) => {
+  const watcher = watchers.get(dirPath)
+  if (watcher) {
+    watcher.close()
+    watchers.delete(dirPath)
+  }
 })
 
 // Native drag

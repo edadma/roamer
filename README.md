@@ -21,6 +21,7 @@ brew install --cask edadma/tap/roamer
 - **Undo** — Cmd+Z to undo moves, copies, and deletes
 - **Selection** — click, Cmd+click (toggle), Shift+click (range), rubber band drag select
 - **Hidden files toggle** in the status bar
+- **Live directory watching** — panels auto-refresh when files change on disk
 
 ### Navigation
 - **Back/Forward/Up** buttons

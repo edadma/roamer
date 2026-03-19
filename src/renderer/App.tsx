@@ -30,6 +30,7 @@ declare global {
       moveFiles: (sources: string[], destDir: string) => Promise<{ src: string; dest: string; error?: string }[]>
       trashFiles: (paths: string[]) => Promise<{ path: string; error?: string }[]>
       restoreFromTrash: (items: { name: string; originalPath: string }[]) => Promise<{ path: string; error?: string }[]>
+      watchDirectory: (dirPath: string, callback: () => void) => () => void
       ptySpawn: (cwd: string) => Promise<void>
       ptyWrite: (data: string) => void
       ptyResize: (cols: number, rows: number) => void
