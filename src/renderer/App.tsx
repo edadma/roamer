@@ -26,6 +26,9 @@ declare global {
       readDirectory: (path: string) => Promise<FileEntry[]>
       getHome: () => Promise<string>
       getCwd: () => Promise<string>
+      openFile: (filePath: string) => Promise<void>
+      createFolder: (dirPath: string) => Promise<void>
+      createFile: (filePath: string) => Promise<void>
       getFileInfo: (filePath: string) => Promise<{ size: number; modifiedAt: string; createdAt: string; isDirectory: boolean; mode: number }>
       readFilePreview: (filePath: string, maxBytes: number) => Promise<string>
       startDrag: (filePaths: string[]) => void
@@ -38,6 +41,7 @@ declare global {
       ptyWrite: (data: string) => void
       ptyResize: (cols: number, rows: number) => void
       ptyKill: () => Promise<void>
+      onEscape: (callback: () => void) => () => void
       onPtyData: (callback: (data: string) => void) => () => void
     }
   }
@@ -214,21 +218,58 @@ export default function App() {
   // Keep terminal focused after UI interactions
   useEffect(() => {
     const refocus = (e: MouseEvent) => {
-      // Don't steal focus from the path bar input
-      if ((e.target as HTMLElement).tagName === 'INPUT') return
-      // Delay to let click handlers run first
-      requestAnimationFrame(() => xtermRef.current?.focus())
+      // Don't steal focus from inputs (path bar, modals, etc.)
+      const tag = (e.target as HTMLElement).tagName
+      if (tag === 'INPUT' || tag === 'TEXTAREA') return
+      // Don't steal focus if an input is currently focused
+      requestAnimationFrame(() => {
+        const active = document.activeElement?.tagName
+        if (active === 'INPUT' || active === 'TEXTAREA') return
+        xtermRef.current?.focus()
+      })
     }
     document.addEventListener('mouseup', refocus)
     return () => document.removeEventListener('mouseup', refocus)
   }, [])
 
+  // Escape key — Electron/Chromium swallows it on macOS, so we get it via IPC
+  // and re-dispatch as a synthetic event so all onKeyDown handlers work
+  useEffect(() => {
+    return window.roamer.onEscape(() => {
+      const target = document.activeElement || document
+      target.dispatchEvent(new KeyboardEvent('keydown', { key: 'Escape', bubbles: true, cancelable: true }))
+    })
+  }, [])
+
   // File operation keyboard shortcuts (Cmd+C, Cmd+X, Cmd+V, Cmd+Backspace)
   useEffect(() => {
     const handler = (e: KeyboardEvent) => {
-      if (!e.metaKey && !e.ctrlKey) return
-      // Don't intercept when typing in path bar
+
+      // Don't intercept when typing in inputs (path bar, modals)
       if ((e.target as HTMLElement).tagName === 'INPUT') return
+
+      // Delete/Backspace — no modifier needed
+      if ((e.key === 'Backspace' || e.key === 'Delete') && active.selected.size > 0 && !e.metaKey && !e.ctrlKey) {
+        e.preventDefault()
+        e.stopPropagation()
+        const paths = [...active.selected]
+        window.roamer.trashFiles(paths).then((results) => {
+          const ok = results.filter((r) => !r.error)
+          const errors = results.filter((r) => r.error)
+          if (errors.length > 0) {
+            active.setError(`Failed: ${errors.map((e) => e.error).join(', ')}`)
+          }
+          if (ok.length > 0) {
+            setUndoStack((s) => [...s, { type: 'trash', paths: ok.map((r) => r.path) }])
+          }
+          active.setSelected(new Set())
+          leftPanel.refresh()
+          rightPanel.refresh()
+        })
+        return
+      }
+
+      if (!e.metaKey && !e.ctrlKey) return
 
       const key = e.key.toLowerCase()
 
@@ -265,23 +306,14 @@ export default function App() {
           leftPanel.refresh()
           rightPanel.refresh()
         })
-      } else if (key === 'backspace' && active.selected.size > 0) {
+      } else if (key === 'n' && e.shiftKey) {
         e.preventDefault()
         e.stopPropagation()
-        const paths = [...active.selected]
-        window.roamer.trashFiles(paths).then((results) => {
-          const ok = results.filter((r) => !r.error)
-          const errors = results.filter((r) => r.error)
-          if (errors.length > 0) {
-            active.setError(`Failed: ${errors.map((e) => e.error).join(', ')}`)
-          }
-          if (ok.length > 0) {
-            setUndoStack((s) => [...s, { type: 'trash', paths: ok.map((r) => r.path) }])
-          }
-          active.setSelected(new Set())
-          leftPanel.refresh()
-          rightPanel.refresh()
-        })
+        active.startNewItem('folder')
+      } else if (key === 'n' && !e.shiftKey) {
+        e.preventDefault()
+        e.stopPropagation()
+        active.startNewItem('file')
       } else if (key === 'z' && !e.shiftKey) {
         e.preventDefault()
         e.stopPropagation()

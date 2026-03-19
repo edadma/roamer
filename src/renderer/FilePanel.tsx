@@ -22,6 +22,10 @@ export interface FilePanelState {
   refresh: () => void
   error: string | null
   setError: (e: string | null) => void
+  newItem: { type: 'file' | 'folder' } | null
+  startNewItem: (type: 'file' | 'folder') => void
+  commitNewItem: (name: string) => Promise<void>
+  cancelNewItem: () => void
 }
 
 export function useFilePanel(initialPath: string): FilePanelState {
@@ -100,10 +104,34 @@ export function useFilePanel(initialPath: string): FilePanelState {
     if (parent !== currentPath) navigate(parent)
   }, [currentPath, navigate])
 
+  const [newItem, setNewItem] = useState<{ type: 'file' | 'folder' } | null>(null)
+
+  const startNewItem = useCallback((type: 'file' | 'folder') => {
+    setNewItem({ type })
+  }, [])
+
+  const commitNewItem = useCallback(async (name: string) => {
+    if (!name.trim()) { setNewItem(null); return }
+    const fullPath = `${currentPath}/${name.trim()}`
+    try {
+      if (newItem?.type === 'folder') {
+        await window.roamer.createFolder(fullPath)
+      } else {
+        await window.roamer.createFile(fullPath)
+      }
+    } catch (e: any) {
+      setError(e.message || 'Failed to create')
+    }
+    setNewItem(null)
+  }, [currentPath, newItem])
+
+  const cancelNewItem = useCallback(() => setNewItem(null), [])
+
   return {
     currentPath, entries, visibleEntries, showHidden, history, forwardHistory,
     selected, setSelected,
     navigate, goBack, goForward, goUp, setShowHidden, refresh, error, setError,
+    newItem, startNewItem, commitNewItem, cancelNewItem,
   }
 }
 
@@ -179,7 +207,11 @@ export default function FilePanel({ panel, focused, onFocus, onDrop, onFileClick
       clearTimeout(clickTimer.current)
       clickTimer.current = null
     }
-    if (entry.isDirectory) panel.navigate(entry.path)
+    if (entry.isDirectory) {
+      panel.navigate(entry.path)
+    } else {
+      window.roamer.openFile(entry.path)
+    }
   }
 
   const handleBackgroundClick = (e: React.MouseEvent) => {
@@ -358,6 +390,22 @@ export default function FilePanel({ panel, focused, onFocus, onDrop, onFileClick
     }
   }
 
+  // Context menu
+  const [contextMenu, setContextMenu] = useState<{ x: number; y: number } | null>(null)
+
+  const handleContextMenu = (e: React.MouseEvent) => {
+    e.preventDefault()
+    onFocus()
+    setContextMenu({ x: e.clientX, y: e.clientY })
+  }
+
+  useEffect(() => {
+    if (!contextMenu) return
+    const close = () => setContextMenu(null)
+    window.addEventListener('click', close)
+    return () => window.removeEventListener('click', close)
+  }, [contextMenu])
+
   const rbStyle = rubberBand ? {
     position: 'absolute' as const,
     left: Math.min(rubberBand.startX, rubberBand.x),
@@ -387,6 +435,7 @@ export default function FilePanel({ panel, focused, onFocus, onDrop, onFileClick
       onDragOver={handlePanelDragOver}
       onDragLeave={handlePanelDragLeave}
       onDrop={handlePanelDrop}
+      onContextMenu={handleContextMenu}
     >
       {panel.visibleEntries.map((entry, index) => {
         const Icon = getFileIcon(entry.extension, entry.isDirectory)
@@ -442,6 +491,52 @@ export default function FilePanel({ panel, focused, onFocus, onDrop, onFileClick
         )
       })}
       {rbStyle && <div style={rbStyle} />}
+      {/* New item modal */}
+      {panel.newItem && (
+        <div
+          style={{
+            position: 'fixed',
+            inset: 0,
+            display: 'flex',
+            alignItems: 'center',
+            justifyContent: 'center',
+            backgroundColor: 'oklch(0 0 0 / 0.4)',
+            zIndex: 2000,
+          }}
+          onClick={(e) => { if (e.target === e.currentTarget) panel.cancelNewItem() }}
+        >
+          <div className="bg-base-100 rounded-lg shadow-xl p-4" style={{ minWidth: 300 }}>
+            <Text size="sm" style={{ fontWeight: 600, marginBottom: 12, display: 'block' }}>
+              {panel.newItem.type === 'folder' ? 'New Folder' : 'New File'}
+            </Text>
+            <input
+              className="input input-sm input-bordered w-full"
+              placeholder={panel.newItem.type === 'folder' ? 'Folder name' : 'File name'}
+              autoFocus
+              onKeyDown={(e) => {
+                if (e.key === 'Enter') panel.commitNewItem((e.target as HTMLInputElement).value)
+                if (e.key === 'Escape') panel.cancelNewItem()
+              }}
+            />
+          </div>
+        </div>
+      )}
+      {/* Context menu */}
+      {contextMenu && (
+        <ul
+          className="menu menu-sm bg-base-200 rounded-box shadow-lg"
+          style={{
+            position: 'fixed',
+            left: contextMenu.x,
+            top: contextMenu.y,
+            zIndex: 1000,
+            minWidth: 160,
+          }}
+        >
+          <li><a onClick={() => { panel.startNewItem('folder'); setContextMenu(null) }}>New Folder</a></li>
+          <li><a onClick={() => { panel.startNewItem('file'); setContextMenu(null) }}>New File</a></li>
+        </ul>
+      )}
     </div>
   )
 }

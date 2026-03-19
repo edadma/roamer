@@ -5,6 +5,9 @@ contextBridge.exposeInMainWorld('roamer', {
   readDirectory: (dirPath: string) => ipcRenderer.invoke('read-directory', dirPath),
   getHome: () => ipcRenderer.invoke('get-home'),
   getCwd: () => ipcRenderer.invoke('get-cwd'),
+  openFile: (filePath: string) => ipcRenderer.invoke('open-file', filePath),
+  createFolder: (dirPath: string) => ipcRenderer.invoke('create-folder', dirPath),
+  createFile: (filePath: string) => ipcRenderer.invoke('create-file', filePath),
   getFileInfo: (filePath: string) => ipcRenderer.invoke('get-file-info', filePath),
   readFilePreview: (filePath: string, maxBytes: number) => ipcRenderer.invoke('read-file-preview', filePath, maxBytes),
   startDrag: (filePaths: string[]) => ipcRenderer.send('start-drag', filePaths),
@@ -26,6 +29,11 @@ contextBridge.exposeInMainWorld('roamer', {
   ptyWrite: (data: string) => ipcRenderer.send('pty-write', data),
   ptyResize: (cols: number, rows: number) => ipcRenderer.send('pty-resize', cols, rows),
   ptyKill: () => ipcRenderer.invoke('pty-kill'),
+  onEscape: (callback: () => void) => {
+    const listener = () => callback()
+    ipcRenderer.on('escape-pressed', listener)
+    return () => ipcRenderer.removeListener('escape-pressed', listener)
+  },
   onPtyData: (callback: (data: string) => void) => {
     const listener = (_event: unknown, data: string) => callback(data)
     ipcRenderer.on('pty-data', listener)

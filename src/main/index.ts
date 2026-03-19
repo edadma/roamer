@@ -1,4 +1,4 @@
-import { app, BrowserWindow, ipcMain, shell } from 'electron'
+import { app, BrowserWindow, ipcMain, shell, globalShortcut } from 'electron'
 import path from 'path'
 import fs from 'fs/promises'
 import { watch, type FSWatcher } from 'fs'
@@ -17,6 +17,12 @@ function createWindow() {
   })
 
   win.once('ready-to-show', () => win.show())
+
+  // Forward Escape key to renderer — Electron/Chromium swallows it on macOS
+  globalShortcut.register('Escape', () => {
+    const focused = BrowserWindow.getFocusedWindow()
+    if (focused) focused.webContents.send('escape-pressed')
+  })
 
   if (process.env.NODE_ENV === 'development') {
     win.loadURL('http://localhost:5173')
@@ -84,6 +90,20 @@ ipcMain.handle('read-file-preview', async (_event, filePath: string, maxBytes: n
 
 ipcMain.handle('get-file-url', (_event, filePath: string) => {
   return `file://${filePath}`
+})
+
+// Open file with default app
+ipcMain.handle('open-file', async (_event, filePath: string) => {
+  await shell.openPath(filePath)
+})
+
+// Create file/folder
+ipcMain.handle('create-folder', async (_event, dirPath: string) => {
+  await fs.mkdir(dirPath, { recursive: true })
+})
+
+ipcMain.handle('create-file', async (_event, filePath: string) => {
+  await fs.writeFile(filePath, '', { flag: 'wx' }) // fail if exists
 })
 
 // File operations
