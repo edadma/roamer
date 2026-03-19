@@ -206,7 +206,9 @@ ipcMain.handle('trash-files', async (_event, paths: string[]) => {
 
 ipcMain.handle('restore-from-trash', async (_event, items: { name: string; originalPath: string }[]) => {
   const home = app.getPath('home')
-  const trashDir = path.join(home, '.Trash')
+  const trashDir = process.platform === 'darwin'
+    ? path.join(home, '.Trash')
+    : path.join(home, '.local', 'share', 'Trash', 'files')
   const results: { path: string; error?: string }[] = []
   for (const item of items) {
     const trashPath = path.join(trashDir, item.name)
@@ -273,7 +275,7 @@ ipcMain.handle('pty-spawn', (_event, cwd: string) => {
   if (ptyProcess) {
     ptyProcess.kill()
   }
-  const shell = process.env.SHELL || '/bin/zsh'
+  const shell = process.env.SHELL || '/bin/sh'
   ptyProcess = pty.spawn(shell, [], {
     name: 'xterm-256color',
     cols: 80,

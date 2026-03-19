@@ -1,6 +1,6 @@
 # Roamer
 
-A cross-platform file explorer inspired by Dolphin, with an integrated terminal panel. Built with Electron, React, and TypeScript.
+A cross-platform file explorer inspired by Dolphin, with an integrated terminal panel. Built with Electron, React, and TypeScript. Works on any POSIX-compliant OS including macOS and Linux.
 
 ## Install (macOS)
 
