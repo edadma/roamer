@@ -1,4 +1,4 @@
-import { app, BrowserWindow, ipcMain } from 'electron'
+import { app, BrowserWindow, ipcMain, shell } from 'electron'
 import path from 'path'
 import fs from 'fs/promises'
 import * as pty from 'node-pty'
@@ -104,11 +104,11 @@ ipcMain.handle('move-files', async (_event, sources: string[], destDir: string) 
   return results
 })
 
-ipcMain.handle('delete-files', async (_event, paths: string[]) => {
+ipcMain.handle('trash-files', async (_event, paths: string[]) => {
   const results: { path: string; error?: string }[] = []
   for (const p of paths) {
     try {
-      await fs.rm(p, { recursive: true })
+      await shell.trashItem(p)
       results.push({ path: p })
     } catch (e: any) {
       results.push({ path: p, error: e.message })

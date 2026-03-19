@@ -119,9 +119,17 @@ export default function FilePanel({ panel, focused, onFocus, onDrop }: FilePanel
   const rbStart = useRef<{ x: number; y: number } | null>(null)
   const itemRects = useRef<Map<string, DOMRect>>(new Map())
 
+  const wasDragging = useRef(false)
+
   const handleItemClick = (e: React.MouseEvent, entry: FileEntry, index: number) => {
     e.stopPropagation()
     onFocus()
+
+    // After a drag, don't change selection
+    if (wasDragging.current) {
+      wasDragging.current = false
+      return
+    }
 
     const isMeta = e.metaKey || e.ctrlKey
     const isShift = e.shiftKey
@@ -144,6 +152,10 @@ export default function FilePanel({ panel, focused, onFocus, onDrop }: FilePanel
         newSet.add(entry.path)
       }
       panel.setSelected(newSet)
+      lastClickedIndex.current = index
+    } else if (panel.selected.has(entry.path) && panel.selected.size > 1) {
+      // Clicking a selected item in a multi-selection: narrow to just this one
+      panel.setSelected(new Set([entry.path]))
       lastClickedIndex.current = index
     } else {
       // Single select
@@ -236,6 +248,8 @@ export default function FilePanel({ panel, focused, onFocus, onDrop }: FilePanel
 
   // Drag start — HTML5 drag for panel-to-panel
   const handleDragStart = (e: React.DragEvent, entry: FileEntry) => {
+    wasDragging.current = true
+
     // If dragging an unselected item, select just that one
     const paths = panel.selected.has(entry.path)
       ? [...panel.selected]
@@ -247,6 +261,16 @@ export default function FilePanel({ panel, focused, onFocus, onDrop }: FilePanel
 
     e.dataTransfer.setData('application/x-roamer-paths', JSON.stringify(paths))
     e.dataTransfer.effectAllowed = 'copyMove'
+
+    // Custom drag image showing count
+    if (paths.length > 1) {
+      const ghost = document.createElement('div')
+      ghost.style.cssText = 'position:absolute;top:-1000px;display:flex;align-items:center;gap:6px;padding:6px 12px;background:oklch(0.25 0.02 250);border:1px solid oklch(0.4 0.1 250);border-radius:8px;color:#fff;font-size:13px;white-space:nowrap;'
+      ghost.textContent = `${paths.length} items`
+      document.body.appendChild(ghost)
+      e.dataTransfer.setDragImage(ghost, 0, 0)
+      requestAnimationFrame(() => document.body.removeChild(ghost))
+    }
   }
 
   // Drop handling — panel background = drop into current dir

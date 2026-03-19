@@ -8,7 +8,7 @@ contextBridge.exposeInMainWorld('roamer', {
   startDrag: (filePaths: string[]) => ipcRenderer.send('start-drag', filePaths),
   copyFiles: (sources: string[], destDir: string) => ipcRenderer.invoke('copy-files', sources, destDir),
   moveFiles: (sources: string[], destDir: string) => ipcRenderer.invoke('move-files', sources, destDir),
-  deleteFiles: (paths: string[]) => ipcRenderer.invoke('delete-files', paths),
+  trashFiles: (paths: string[]) => ipcRenderer.invoke('trash-files', paths),
   ptySpawn: (cwd: string) => ipcRenderer.invoke('pty-spawn', cwd),
   ptyWrite: (data: string) => ipcRenderer.send('pty-write', data),
   ptyResize: (cols: number, rows: number) => ipcRenderer.send('pty-resize', cols, rows),

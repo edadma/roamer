@@ -28,7 +28,7 @@ declare global {
       startDrag: (filePaths: string[]) => void
       copyFiles: (sources: string[], destDir: string) => Promise<{ src: string; dest: string; error?: string }[]>
       moveFiles: (sources: string[], destDir: string) => Promise<{ src: string; dest: string; error?: string }[]>
-      deleteFiles: (paths: string[]) => Promise<{ path: string; error?: string }[]>
+      trashFiles: (paths: string[]) => Promise<{ path: string; error?: string }[]>
       ptySpawn: (cwd: string) => Promise<void>
       ptyWrite: (data: string) => void
       ptyResize: (cols: number, rows: number) => void
@@ -140,6 +140,13 @@ export default function App() {
   // Internal clipboard for file operations
   const [clipboard, setClipboard] = useState<{ paths: string[]; mode: 'copy' | 'cut' } | null>(null)
 
+  // Undo stack
+  type UndoEntry =
+    | { type: 'move'; items: { src: string; dest: string }[] }
+    | { type: 'copy'; created: string[] }
+    | { type: 'trash'; paths: string[] }
+  const [undoStack, setUndoStack] = useState<UndoEntry[]>([])
+
   const xtermRef = useRef<XTerm | null>(null)
 
   useEffect(() => {
@@ -231,16 +238,24 @@ export default function App() {
         e.preventDefault()
         e.stopPropagation()
         const dest = active.currentPath
-        const op = clipboard.mode === 'cut'
+        const isCut = clipboard.mode === 'cut'
+        const op = isCut
           ? window.roamer.moveFiles(clipboard.paths, dest)
           : window.roamer.copyFiles(clipboard.paths, dest)
         op.then((results) => {
+          const ok = results.filter((r) => !r.error)
           const errors = results.filter((r) => r.error)
           if (errors.length > 0) {
             active.setError(`Failed: ${errors.map((e) => e.error).join(', ')}`)
           }
-          if (clipboard.mode === 'cut') setClipboard(null)
-          // Refresh both panels
+          if (ok.length > 0) {
+            if (isCut) {
+              setUndoStack((s) => [...s, { type: 'move', items: ok.map((r) => ({ src: r.src, dest: r.dest })) }])
+            } else {
+              setUndoStack((s) => [...s, { type: 'copy', created: ok.map((r) => r.dest) }])
+            }
+          }
+          if (isCut) setClipboard(null)
           leftPanel.refresh()
           rightPanel.refresh()
         })
@@ -248,14 +263,44 @@ export default function App() {
         e.preventDefault()
         e.stopPropagation()
         const paths = [...active.selected]
-        window.roamer.deleteFiles(paths).then((results) => {
+        window.roamer.trashFiles(paths).then((results) => {
+          const ok = results.filter((r) => !r.error)
           const errors = results.filter((r) => r.error)
           if (errors.length > 0) {
             active.setError(`Failed: ${errors.map((e) => e.error).join(', ')}`)
           }
+          if (ok.length > 0) {
+            setUndoStack((s) => [...s, { type: 'trash', paths: ok.map((r) => r.path) }])
+          }
           active.setSelected(new Set())
           leftPanel.refresh()
           rightPanel.refresh()
+        })
+      } else if (key === 'z' && !e.shiftKey) {
+        e.preventDefault()
+        e.stopPropagation()
+        setUndoStack((stack) => {
+          if (stack.length === 0) return stack
+          const entry = stack[stack.length - 1]
+          const newStack = stack.slice(0, -1)
+          if (entry.type === 'move') {
+            // Reverse the moves
+            const reversals = entry.items.map((i) => ({ src: i.dest, dest: i.src }))
+            Promise.all(reversals.map((r) =>
+              window.roamer.moveFiles([r.src], r.dest.split('/').slice(0, -1).join('/') || '/')
+            )).then(() => {
+              leftPanel.refresh()
+              rightPanel.refresh()
+            })
+          } else if (entry.type === 'copy') {
+            // Delete the copies
+            window.roamer.trashFiles(entry.created).then(() => {
+              leftPanel.refresh()
+              rightPanel.refresh()
+            })
+          }
+          // trash undo not supported (OS manages trash)
+          return newStack
         })
       }
     }
@@ -266,14 +311,21 @@ export default function App() {
 
   // Handle file drops (from panels or Finder)
   const handleFileDrop = useCallback((sourcePaths: string[], destDir: string, copy: boolean) => {
-    // Don't drop onto the same directory the files are in
     const op = copy
       ? window.roamer.copyFiles(sourcePaths, destDir)
       : window.roamer.moveFiles(sourcePaths, destDir)
     op.then((results) => {
+      const ok = results.filter((r) => !r.error)
       const errors = results.filter((r) => r.error)
       if (errors.length > 0) {
         active.setError(`Failed: ${errors.map((e) => e.error).join(', ')}`)
+      }
+      if (ok.length > 0) {
+        if (copy) {
+          setUndoStack((s) => [...s, { type: 'copy', created: ok.map((r) => r.dest) }])
+        } else {
+          setUndoStack((s) => [...s, { type: 'move', items: ok.map((r) => ({ src: r.src, dest: r.dest })) }])
+        }
       }
       leftPanel.refresh()
       rightPanel.refresh()
