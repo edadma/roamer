@@ -151,14 +151,24 @@ export default function App() {
   // Update or clear inspected file when entries change
   useEffect(() => {
     if (!inspectedFile) return
-    const updated = active.visibleEntries.find((e) => e.path === inspectedFile.path)
-    if (updated) {
-      // Entry still exists — update with fresh data (e.g. after rename the path changes)
-      if (updated.name !== inspectedFile.name) setInspectedFile(updated)
-    } else {
-      // Entry no longer exists — clear preview
-      setInspectedFile(null)
+    // Check if file still exists
+    const byPath = active.visibleEntries.find((e) => e.path === inspectedFile.path)
+    if (byPath) {
+      setInspectedFile(byPath)
+      return
     }
+    // Check if it was renamed
+    const renamed = active.lastRenamedTo.current
+    if (renamed) {
+      const renamedEntry = active.visibleEntries.find((e) => e.path === renamed)
+      if (renamedEntry) {
+        setInspectedFile(renamedEntry)
+        active.lastRenamedTo.current = null
+        return
+      }
+    }
+    // File is gone
+    setInspectedFile(null)
   }, [active.visibleEntries])
 
   // Internal clipboard for file operations

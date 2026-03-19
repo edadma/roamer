@@ -43,6 +43,7 @@ export interface FilePanelState {
   commitNewItem: (name: string) => Promise<void>
   cancelNewItem: () => void
   renamingPath: string | null
+  lastRenamedTo: React.RefObject<string | null>
   startRename: (path: string) => void
   commitRename: (oldPath: string, newName: string) => Promise<void>
   cancelRename: () => void
@@ -153,6 +154,8 @@ export function useFilePanel(initialPath: string): FilePanelState {
 
   const startRename = useCallback((path: string) => setRenamingPath(path), [])
 
+  const lastRenamedTo = useRef<string | null>(null)
+
   const commitRename = useCallback(async (oldPath: string, newName: string) => {
     if (!newName.trim()) { setRenamingPath(null); return }
     const dir = oldPath.split('/').slice(0, -1).join('/')
@@ -160,12 +163,25 @@ export function useFilePanel(initialPath: string): FilePanelState {
     if (newPath !== oldPath) {
       try {
         await window.roamer.renameFile(oldPath, newPath)
+        lastRenamedTo.current = newPath
+        setSelected(new Set([newPath]))
       } catch (e: any) {
         setError(e.message || 'Failed to rename')
       }
     }
     setRenamingPath(null)
   }, [])
+
+  // Refocus terminal after rename input closes
+  useEffect(() => {
+    if (!renamingPath) {
+      requestAnimationFrame(() => {
+        const active = document.activeElement?.tagName
+        if (active === 'INPUT' || active === 'TEXTAREA') return
+        document.querySelector<HTMLTextAreaElement>('.xterm-helper-textarea')?.focus()
+      })
+    }
+  }, [renamingPath])
 
   const cancelRename = useCallback(() => setRenamingPath(null), [])
 
@@ -176,7 +192,7 @@ export function useFilePanel(initialPath: string): FilePanelState {
     viewMode, setViewMode,
     error, setError,
     newItem, startNewItem, commitNewItem, cancelNewItem,
-    renamingPath, startRename, commitRename, cancelRename,
+    renamingPath, lastRenamedTo, startRename, commitRename, cancelRename,
   }
 }
 
