@@ -3,9 +3,9 @@ import { Typography, Button } from 'asterui'
 import { Terminal as XTerm } from '@xterm/xterm'
 import { FitAddon } from '@xterm/addon-fit'
 import '@xterm/xterm/css/xterm.css'
-import { ArrowLeftIcon, ArrowRightIcon, ArrowUpIcon, PencilSquareIcon, HomeIcon, ComputerDesktopIcon, DocumentIcon, ArrowDownTrayIcon, FolderIcon } from '@aster-ui/icons'
-import { getFileIcon } from './icons'
+import { ArrowLeftIcon, ArrowRightIcon, ArrowUpIcon, PencilSquareIcon, HomeIcon, ComputerDesktopIcon, DocumentIcon, ArrowDownTrayIcon, FolderIcon, ViewColumnsIcon } from '@aster-ui/icons'
 import Splitter from './Splitter'
+import FilePanel, { useFilePanel, type FilePanelState } from './FilePanel'
 import { initDb, getPlaces, type Place } from './db'
 import type { FileEntry } from './types'
 
@@ -123,15 +123,16 @@ function PathBar({
 }
 
 export default function App() {
-  const [currentPath, setCurrentPath] = useState('')
-  const [entries, setEntries] = useState<FileEntry[]>([])
-  const [showHidden, setShowHidden] = useState(false)
-  const [history, setHistory] = useState<string[]>([])
-  const [forwardHistory, setForwardHistory] = useState<string[]>([])
+  const [cwd, setCwd] = useState('')
   const [dbReady, setDbReady] = useState(false)
-  const [error, setError] = useState<string | null>(null)
   const [placesList, setPlacesList] = useState<Place[]>([])
-  const [terminalOpen, setTerminalOpen] = useState(true)
+  const [splitView, setSplitView] = useState(false)
+  const [activePanel, setActivePanel] = useState<'left' | 'right'>('left')
+
+  const leftPanel = useFilePanel(cwd)
+  const rightPanel = useFilePanel(cwd)
+  const active = activePanel === 'left' ? leftPanel : rightPanel
+
   const xtermRef = useRef<XTerm | null>(null)
 
   useEffect(() => {
@@ -144,9 +145,7 @@ export default function App() {
         console.error('Failed to load places:', e)
       }
     })
-    window.roamer.getCwd().then((cwd) => {
-      setCurrentPath(cwd)
-    })
+    window.roamer.getCwd().then((c) => setCwd(c))
   }, [])
 
   // Initialize xterm when the container mounts
@@ -155,7 +154,6 @@ export default function App() {
   const ptyCleanupRef = useRef<(() => void) | null>(null)
 
   const termContainerCallback = useCallback((node: HTMLDivElement | null) => {
-    // Cleanup previous
     if (!node) {
       resizeObserverRef.current?.disconnect()
       ptyCleanupRef.current?.()
@@ -196,78 +194,23 @@ export default function App() {
   // Spawn PTY once we have a path
   const ptySpawned = useRef(false)
   useEffect(() => {
-    if (!currentPath || ptySpawned.current) return
+    if (!active.currentPath || ptySpawned.current) return
     ptySpawned.current = true
-    window.roamer.ptySpawn(currentPath)
-  }, [currentPath])
+    window.roamer.ptySpawn(active.currentPath)
+  }, [active.currentPath])
 
-  // cd when directory changes (after initial spawn)
+  // cd terminal when active panel's path changes
   const prevPath = useRef('')
   useEffect(() => {
-    if (!currentPath || !prevPath.current) {
-      prevPath.current = currentPath
+    if (!active.currentPath || !prevPath.current) {
+      prevPath.current = active.currentPath
       return
     }
-    if (currentPath !== prevPath.current) {
-      prevPath.current = currentPath
-      window.roamer.ptyWrite(`cd ${currentPath.replace(/ /g, '\\ ')}\n`)
+    if (active.currentPath !== prevPath.current) {
+      prevPath.current = active.currentPath
+      window.roamer.ptyWrite(`cd ${active.currentPath.replace(/ /g, '\\ ')}\n`)
     }
-  }, [currentPath])
-
-  useEffect(() => {
-    if (!currentPath) return
-    window.roamer.readDirectory(currentPath).then((items) => {
-      const sorted = items.sort((a, b) => {
-        if (a.isDirectory !== b.isDirectory) return a.isDirectory ? -1 : 1
-        return a.name.localeCompare(b.name)
-      })
-      setEntries(sorted)
-    }).catch(() => {
-      const badPath = currentPath
-      // Revert to previous path
-      if (history.length > 0) {
-        const prev = history[history.length - 1]
-        setHistory((h) => h.slice(0, -1))
-        setCurrentPath(prev)
-      }
-      // Set error after revert so it doesn't get cleared
-      setTimeout(() => setError(`Cannot open: ${badPath}`), 0)
-    })
-  }, [currentPath])
-
-  const visibleEntries = showHidden
-    ? entries
-    : entries.filter((e) => !e.name.startsWith('.'))
-
-  const navigate = useCallback(
-    (path: string) => {
-      setHistory((prev) => [...prev, currentPath])
-      setForwardHistory([])
-      setCurrentPath(path)
-    },
-    [currentPath],
-  )
-
-  const goBack = useCallback(() => {
-    if (history.length === 0) return
-    const prev = history[history.length - 1]
-    setHistory((h) => h.slice(0, -1))
-    setForwardHistory((f) => [...f, currentPath])
-    setCurrentPath(prev)
-  }, [history, currentPath])
-
-  const goForward = useCallback(() => {
-    if (forwardHistory.length === 0) return
-    const next = forwardHistory[forwardHistory.length - 1]
-    setForwardHistory((f) => f.slice(0, -1))
-    setHistory((h) => [...h, currentPath])
-    setCurrentPath(next)
-  }, [forwardHistory, currentPath])
-
-  const goUp = useCallback(() => {
-    const parent = currentPath.split('/').slice(0, -1).join('/') || '/'
-    if (parent !== currentPath) navigate(parent)
-  }, [currentPath, navigate])
+  }, [active.currentPath])
 
   return (
     <div className="flex flex-col h-screen">
@@ -278,45 +221,53 @@ export default function App() {
           size="sm"
           shape="square"
           icon={<ArrowLeftIcon />}
-          onClick={goBack}
-          disabled={history.length === 0}
+          onClick={active.goBack}
+          disabled={active.history.length === 0}
         />
         <Button
           variant="ghost"
           size="sm"
           shape="square"
           icon={<ArrowRightIcon />}
-          onClick={goForward}
-          disabled={forwardHistory.length === 0}
+          onClick={active.goForward}
+          disabled={active.forwardHistory.length === 0}
         />
         <Button
           variant="ghost"
           size="sm"
           shape="square"
           icon={<ArrowUpIcon />}
-          onClick={goUp}
+          onClick={active.goUp}
         />
-        <PathBar currentPath={currentPath} onNavigate={navigate} onEditStart={() => setError(null)} />
+        <PathBar currentPath={active.currentPath} onNavigate={active.navigate} onEditStart={() => active.setError(null)} />
+        <Button
+          variant="ghost"
+          size="sm"
+          shape="square"
+          icon={<ViewColumnsIcon />}
+          onClick={() => setSplitView((v) => !v)}
+          className={splitView ? 'btn-active' : ''}
+        />
       </div>
 
       {/* Error bar */}
-      {error && (
+      {active.error && (
         <div
           className="flex items-center gap-2 px-3 py-2 text-sm shrink-0"
           style={{ backgroundColor: 'oklch(0.64 0.21 25)', color: '#fff' }}
         >
-          <span className="flex-1">{error}</span>
+          <span className="flex-1">{active.error}</span>
           <button
             className="btn btn-ghost btn-xs"
             style={{ color: '#fff' }}
-            onClick={() => setError(null)}
+            onClick={() => active.setError(null)}
           >
             Dismiss
           </button>
         </div>
       )}
 
-      {/* Main content: sidebar + file grid + terminal */}
+      {/* Main content: sidebar + file grids + terminal */}
       <Splitter direction="horizontal" defaultSize={180} minSize={120} className="flex-1 min-h-0">
         {/* Places panel */}
         <div className="h-full overflow-auto border-r border-base-300">
@@ -328,12 +279,12 @@ export default function App() {
           <ul className="menu menu-sm px-1 py-0">
             {placesList.map((place) => {
               const PlaceIcon = placeIconMap[place.icon ?? ''] ?? FolderIcon
-              const isActive = currentPath === place.path
+              const isActive = active.currentPath === place.path
               return (
                 <li key={place.id}>
                   <a
                     className={isActive ? 'active' : ''}
-                    onClick={() => navigate(place.path)}
+                    onClick={() => active.navigate(place.path)}
                   >
                     <PlaceIcon size="sm" />
                     {place.name}
@@ -344,58 +295,17 @@ export default function App() {
           </ul>
         </div>
 
-        {/* File grid + terminal */}
+        {/* File grid(s) + terminal */}
         <Splitter direction="vertical" defaultSize={200} minSize={80}>
-          {/* File grid */}
-          <div
-            className="overflow-auto p-3 h-full"
-            style={{
-              display: 'grid',
-              gridTemplateColumns: 'repeat(auto-fill, minmax(90px, 1fr))',
-              gap: '2px',
-              alignContent: 'start',
-            }}
-          >
-            {visibleEntries.map((entry) => {
-              const Icon = getFileIcon(entry.extension, entry.isDirectory)
-              return (
-                <button
-                  key={entry.name}
-                  onDoubleClick={() => {
-                    if (entry.isDirectory) navigate(entry.path)
-                  }}
-                  className="btn btn-ghost"
-                  style={{
-                    display: 'flex',
-                    flexDirection: 'column',
-                    alignItems: 'center',
-                    justifyContent: 'flex-start',
-                    gap: '6px',
-                    padding: '8px 4px',
-                    height: 'auto',
-                    minHeight: '72px',
-                    cursor: entry.isDirectory ? 'pointer' : 'default',
-                  }}
-                >
-                  <Icon
-                    size="xl"
-                    className={entry.isDirectory ? 'text-warning' : 'text-base-content'}
-                  />
-                  <Text
-                    size="xs"
-                    style={{
-                      textAlign: 'center',
-                      wordBreak: 'break-all',
-                      lineHeight: '1.2',
-                      maxWidth: '100%',
-                    }}
-                  >
-                    {entry.name}
-                  </Text>
-                </button>
-              )
-            })}
-          </div>
+          {/* File grid area */}
+          {splitView ? (
+            <Splitter direction="horizontal" defaultSize={400} minSize={200}>
+              <FilePanel panel={leftPanel} focused={activePanel === 'left'} onFocus={() => setActivePanel('left')} />
+              <FilePanel panel={rightPanel} focused={activePanel === 'right'} onFocus={() => setActivePanel('right')} />
+            </Splitter>
+          ) : (
+            <FilePanel panel={leftPanel} focused={true} onFocus={() => setActivePanel('left')} />
+          )}
           {/* Terminal panel */}
           <div ref={termContainerCallback} className="h-full" />
         </Splitter>
@@ -404,16 +314,16 @@ export default function App() {
       {/* Status bar */}
       <div className="flex items-center gap-2 px-3 py-1 border-t border-base-300 text-xs shrink-0">
         <Text size="xs" type="secondary">
-          {visibleEntries.length} items
-          {!showHidden && entries.length !== visibleEntries.length &&
-            ` (${entries.length - visibleEntries.length} hidden)`}
+          {active.visibleEntries.length} items
+          {!active.showHidden && active.entries.length !== active.visibleEntries.length &&
+            ` (${active.entries.length - active.visibleEntries.length} hidden)`}
         </Text>
         <label className="ml-auto flex items-center gap-1 cursor-pointer">
           <input
             type="checkbox"
             className="checkbox checkbox-xs"
-            checked={showHidden}
-            onChange={(e) => setShowHidden(e.target.checked)}
+            checked={active.showHidden}
+            onChange={(e) => active.setShowHidden(e.target.checked)}
           />
           <Text size="xs" type="secondary">Show hidden</Text>
         </label>
