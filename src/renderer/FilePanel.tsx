@@ -12,6 +12,12 @@ function formatSize(bytes: number): string {
   return `${(bytes / (1024 * 1024 * 1024)).toFixed(1)} GB`
 }
 
+function formatPermissions(mode: number): string {
+  const perms = mode & 0o777
+  const chars = ['---', '--x', '-w-', '-wx', 'r--', 'r-x', 'rw-', 'rwx']
+  return chars[(perms >> 6) & 7] + chars[(perms >> 3) & 7] + chars[perms & 7]
+}
+
 function formatDate(iso: string): string {
   if (!iso) return ''
   return new Date(iso).toLocaleDateString(undefined, { year: 'numeric', month: 'short', day: 'numeric', hour: '2-digit', minute: '2-digit' })
@@ -551,7 +557,7 @@ export default function FilePanel({ panel, focused, onFocus, onDrop, onFileClick
           <span style={{ width: 28 }} />
           <span style={{ flex: 1 }}>Name</span>
           <span style={{ width: 80, textAlign: 'right' }}>Size</span>
-          <span style={{ width: 60, textAlign: 'right' }}>Perms</span>
+          <span style={{ width: 80, textAlign: 'right' }}>Permissions</span>
           <span style={{ width: 70, textAlign: 'right' }}>Owner</span>
           <span style={{ width: 160, textAlign: 'right' }}>Modified</span>
         </div>
@@ -605,8 +611,8 @@ export default function FilePanel({ panel, focused, onFocus, onDrop, onFileClick
               <span style={{ width: 80, textAlign: 'right', color: 'oklch(0.6 0 0)', fontSize: 12 }}>
                 {entry.isDirectory ? '' : formatSize(entry.size)}
               </span>
-              <span style={{ width: 60, textAlign: 'right', color: 'oklch(0.6 0 0)', fontSize: 12, fontFamily: 'monospace' }}>
-                {(entry.mode & 0o777).toString(8)}
+              <span style={{ width: 80, textAlign: 'right', color: 'oklch(0.6 0 0)', fontSize: 12, fontFamily: 'monospace' }}>
+                {formatPermissions(entry.mode)}
               </span>
               <span style={{ width: 70, textAlign: 'right', color: 'oklch(0.6 0 0)', fontSize: 12 }}>
                 {entry.owner}

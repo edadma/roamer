@@ -2,7 +2,38 @@ import { app, BrowserWindow, ipcMain, shell, globalShortcut } from 'electron'
 import path from 'path'
 import fs from 'fs/promises'
 import { watch, type FSWatcher } from 'fs'
+import { execSync } from 'child_process'
 import * as pty from 'node-pty'
+
+// Cache uid/gid to name lookups
+const uidCache = new Map<number, string>()
+const gidCache = new Map<number, string>()
+
+function getUserName(uid: number): string {
+  if (uidCache.has(uid)) return uidCache.get(uid)!
+  try {
+    const name = execSync(`id -un ${uid}`, { encoding: 'utf-8' }).trim()
+    uidCache.set(uid, name)
+    return name
+  } catch {
+    const s = String(uid)
+    uidCache.set(uid, s)
+    return s
+  }
+}
+
+function getGroupName(gid: number): string {
+  if (gidCache.has(gid)) return gidCache.get(gid)!
+  try {
+    const name = execSync(`id -gn ${gid}`, { encoding: 'utf-8' }).trim()
+    gidCache.set(gid, name)
+    return name
+  } catch {
+    const s = String(gid)
+    gidCache.set(gid, s)
+    return s
+  }
+}
 
 function createWindow() {
   const win = new BrowserWindow({
@@ -54,7 +85,7 @@ ipcMain.handle('read-directory', async (_event, dirPath: string) => {
         size = stat.size
         modifiedAt = stat.mtime.toISOString()
         mode = stat.mode
-        owner = `${stat.uid}:${stat.gid}`
+        owner = `${getUserName(stat.uid)}:${getGroupName(stat.gid)}`
       } catch {
         // Broken symlink or permission denied
       }
