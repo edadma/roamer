@@ -248,8 +248,8 @@ export default function App() {
       // Don't intercept when typing in inputs (path bar, modals)
       if ((e.target as HTMLElement).tagName === 'INPUT') return
 
-      // Delete/Backspace — no modifier needed
-      if ((e.key === 'Backspace' || e.key === 'Delete') && active.selected.size > 0 && !e.metaKey && !e.ctrlKey) {
+      // Delete/Backspace — with or without modifiers
+      if ((e.key === 'Backspace' || e.key === 'Delete') && active.selected.size > 0) {
         e.preventDefault()
         e.stopPropagation()
         const paths = [...active.selected]
