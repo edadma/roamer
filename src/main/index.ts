@@ -1,7 +1,7 @@
 import { app, BrowserWindow, ipcMain, shell, globalShortcut } from 'electron'
 import path from 'path'
 import fs from 'fs/promises'
-import { watch, type FSWatcher } from 'fs'
+import { watch, readFileSync, type FSWatcher } from 'fs'
 import { execSync } from 'child_process'
 import * as pty from 'node-pty'
 
@@ -22,17 +22,21 @@ function getUserName(uid: number): string {
   }
 }
 
-function getGroupName(gid: number): string {
-  if (gidCache.has(gid)) return gidCache.get(gid)!
+function loadGroupMap() {
   try {
-    const name = execSync(`id -gn ${gid}`, { encoding: 'utf-8' }).trim()
-    gidCache.set(gid, name)
-    return name
-  } catch {
-    const s = String(gid)
-    gidCache.set(gid, s)
-    return s
-  }
+    const content = readFileSync('/etc/group', 'utf-8')
+    for (const line of content.split('\n')) {
+      const parts = line.split(':')
+      if (parts.length >= 3) {
+        gidCache.set(Number(parts[2]), parts[0])
+      }
+    }
+  } catch { /* ignore */ }
+}
+loadGroupMap()
+
+function getGroupName(gid: number): string {
+  return gidCache.get(gid) ?? String(gid)
 }
 
 function createWindow() {
