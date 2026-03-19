@@ -6,6 +6,7 @@ contextBridge.exposeInMainWorld('roamer', {
   getHome: () => ipcRenderer.invoke('get-home'),
   getCwd: () => ipcRenderer.invoke('get-cwd'),
   openFile: (filePath: string) => ipcRenderer.invoke('open-file', filePath),
+  renameFile: (oldPath: string, newPath: string) => ipcRenderer.invoke('rename-file', oldPath, newPath),
   createFolder: (dirPath: string) => ipcRenderer.invoke('create-folder', dirPath),
   createFile: (filePath: string) => ipcRenderer.invoke('create-file', filePath),
   getFileInfo: (filePath: string) => ipcRenderer.invoke('get-file-info', filePath),

@@ -27,6 +27,7 @@ declare global {
       getHome: () => Promise<string>
       getCwd: () => Promise<string>
       openFile: (filePath: string) => Promise<void>
+      renameFile: (oldPath: string, newPath: string) => Promise<void>
       createFolder: (dirPath: string) => Promise<void>
       createFile: (filePath: string) => Promise<void>
       getFileInfo: (filePath: string) => Promise<{ size: number; modifiedAt: string; createdAt: string; isDirectory: boolean; mode: number }>
@@ -247,6 +248,14 @@ export default function App() {
 
       // Don't intercept when typing in inputs (path bar, modals)
       if ((e.target as HTMLElement).tagName === 'INPUT') return
+
+      // F2 — rename selected file
+      if (e.key === 'F2' && active.selected.size === 1) {
+        e.preventDefault()
+        e.stopPropagation()
+        active.startRename([...active.selected][0])
+        return
+      }
 
       // Delete/Backspace — with or without modifiers
       if ((e.key === 'Backspace' || e.key === 'Delete') && active.selected.size > 0) {

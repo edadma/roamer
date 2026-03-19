@@ -26,6 +26,10 @@ export interface FilePanelState {
   startNewItem: (type: 'file' | 'folder') => void
   commitNewItem: (name: string) => Promise<void>
   cancelNewItem: () => void
+  renamingPath: string | null
+  startRename: (path: string) => void
+  commitRename: (oldPath: string, newName: string) => Promise<void>
+  cancelRename: () => void
 }
 
 export function useFilePanel(initialPath: string): FilePanelState {
@@ -127,11 +131,32 @@ export function useFilePanel(initialPath: string): FilePanelState {
 
   const cancelNewItem = useCallback(() => setNewItem(null), [])
 
+  const [renamingPath, setRenamingPath] = useState<string | null>(null)
+
+  const startRename = useCallback((path: string) => setRenamingPath(path), [])
+
+  const commitRename = useCallback(async (oldPath: string, newName: string) => {
+    if (!newName.trim()) { setRenamingPath(null); return }
+    const dir = oldPath.split('/').slice(0, -1).join('/')
+    const newPath = `${dir}/${newName.trim()}`
+    if (newPath !== oldPath) {
+      try {
+        await window.roamer.renameFile(oldPath, newPath)
+      } catch (e: any) {
+        setError(e.message || 'Failed to rename')
+      }
+    }
+    setRenamingPath(null)
+  }, [])
+
+  const cancelRename = useCallback(() => setRenamingPath(null), [])
+
   return {
     currentPath, entries, visibleEntries, showHidden, history, forwardHistory,
     selected, setSelected,
     navigate, goBack, goForward, goUp, setShowHidden, refresh, error, setError,
     newItem, startNewItem, commitNewItem, cancelNewItem,
+    renamingPath, startRename, commitRename, cancelRename,
   }
 }
 
@@ -391,12 +416,13 @@ export default function FilePanel({ panel, focused, onFocus, onDrop, onFileClick
   }
 
   // Context menu
-  const [contextMenu, setContextMenu] = useState<{ x: number; y: number } | null>(null)
+  const [contextMenu, setContextMenu] = useState<{ x: number; y: number; entry?: FileEntry } | null>(null)
 
-  const handleContextMenu = (e: React.MouseEvent) => {
+  const handleContextMenu = (e: React.MouseEvent, entry?: FileEntry) => {
     e.preventDefault()
+    e.stopPropagation()
     onFocus()
-    setContextMenu({ x: e.clientX, y: e.clientY })
+    setContextMenu({ x: e.clientX, y: e.clientY, entry })
   }
 
   useEffect(() => {
@@ -435,7 +461,7 @@ export default function FilePanel({ panel, focused, onFocus, onDrop, onFileClick
       onDragOver={handlePanelDragOver}
       onDragLeave={handlePanelDragLeave}
       onDrop={handlePanelDrop}
-      onContextMenu={handleContextMenu}
+      onContextMenu={(e) => handleContextMenu(e)}
     >
       {panel.visibleEntries.map((entry, index) => {
         const Icon = getFileIcon(entry.extension, entry.isDirectory)
@@ -452,6 +478,7 @@ export default function FilePanel({ panel, focused, onFocus, onDrop, onFileClick
             onDrop={(e) => handleFolderDrop(e, entry)}
             onClick={(e) => handleItemClick(e, entry, index)}
             onDoubleClick={() => handleDoubleClick(entry)}
+            onContextMenu={(e) => handleContextMenu(e, entry)}
             className="btn btn-ghost"
             style={{
               display: 'flex',
@@ -476,17 +503,33 @@ export default function FilePanel({ panel, focused, onFocus, onDrop, onFileClick
               size="xl"
               className={entry.isDirectory ? 'text-warning' : 'text-base-content'}
             />
-            <Text
-              size="xs"
-              style={{
-                textAlign: 'center',
-                wordBreak: 'break-all',
-                lineHeight: '1.2',
-                maxWidth: '100%',
-              }}
-            >
-              {entry.name}
-            </Text>
+            {panel.renamingPath === entry.path ? (
+              <input
+                className="input input-xs input-bordered text-center"
+                style={{ width: '100%', fontSize: 11 }}
+                defaultValue={entry.name}
+                autoFocus
+                onClick={(e) => e.stopPropagation()}
+                onKeyDown={(e) => {
+                  if (e.key === 'Enter') panel.commitRename(entry.path, (e.target as HTMLInputElement).value)
+                  if (e.key === 'Escape') panel.cancelRename()
+                  e.stopPropagation()
+                }}
+                onBlur={(e) => panel.commitRename(entry.path, e.target.value)}
+              />
+            ) : (
+              <Text
+                size="xs"
+                style={{
+                  textAlign: 'center',
+                  wordBreak: 'break-all',
+                  lineHeight: '1.2',
+                  maxWidth: '100%',
+                }}
+              >
+                {entry.name}
+              </Text>
+            )}
           </button>
         )
       })}
@@ -533,8 +576,20 @@ export default function FilePanel({ panel, focused, onFocus, onDrop, onFileClick
             minWidth: 160,
           }}
         >
-          <li><a onClick={() => { panel.startNewItem('folder'); setContextMenu(null) }}>New Folder</a></li>
-          <li><a onClick={() => { panel.startNewItem('file'); setContextMenu(null) }}>New File</a></li>
+          {contextMenu.entry ? (
+            <>
+              <li><a onClick={() => { panel.startRename(contextMenu.entry!.path); setContextMenu(null) }}>Rename</a></li>
+              <li><a onClick={() => {
+                window.roamer.trashFiles([contextMenu.entry!.path])
+                setContextMenu(null)
+              }}>Delete</a></li>
+            </>
+          ) : (
+            <>
+              <li><a onClick={() => { panel.startNewItem('folder'); setContextMenu(null) }}>New Folder</a></li>
+              <li><a onClick={() => { panel.startNewItem('file'); setContextMenu(null) }}>New File</a></li>
+            </>
+          )}
         </ul>
       )}
     </div>

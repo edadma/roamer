@@ -97,6 +97,11 @@ ipcMain.handle('open-file', async (_event, filePath: string) => {
   await shell.openPath(filePath)
 })
 
+// Rename
+ipcMain.handle('rename-file', async (_event, oldPath: string, newPath: string) => {
+  await fs.rename(oldPath, newPath)
+})
+
 // Create file/folder
 ipcMain.handle('create-folder', async (_event, dirPath: string) => {
   await fs.mkdir(dirPath, { recursive: true })
