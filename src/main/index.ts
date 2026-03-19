@@ -61,6 +61,62 @@ ipcMain.handle('read-directory', async (_event, dirPath: string) => {
   return results
 })
 
+// File operations
+ipcMain.handle('copy-files', async (_event, sources: string[], destDir: string) => {
+  const results: { src: string; dest: string; error?: string }[] = []
+  for (const src of sources) {
+    const name = path.basename(src)
+    const dest = path.join(destDir, name)
+    try {
+      await fs.cp(src, dest, { recursive: true, preserveTimestamps: true })
+      // Preserve permissions
+      const stat = await fs.stat(src)
+      await fs.chmod(dest, stat.mode)
+      results.push({ src, dest })
+    } catch (e: any) {
+      results.push({ src, dest, error: e.message })
+    }
+  }
+  return results
+})
+
+ipcMain.handle('move-files', async (_event, sources: string[], destDir: string) => {
+  const results: { src: string; dest: string; error?: string }[] = []
+  for (const src of sources) {
+    const name = path.basename(src)
+    const dest = path.join(destDir, name)
+    try {
+      await fs.rename(src, dest)
+      results.push({ src, dest })
+    } catch (e: any) {
+      // rename fails across devices, fall back to copy+delete
+      try {
+        await fs.cp(src, dest, { recursive: true, preserveTimestamps: true })
+        const stat = await fs.stat(src)
+        await fs.chmod(dest, stat.mode)
+        await fs.rm(src, { recursive: true })
+        results.push({ src, dest })
+      } catch (e2: any) {
+        results.push({ src, dest, error: e2.message })
+      }
+    }
+  }
+  return results
+})
+
+ipcMain.handle('delete-files', async (_event, paths: string[]) => {
+  const results: { path: string; error?: string }[] = []
+  for (const p of paths) {
+    try {
+      await fs.rm(p, { recursive: true })
+      results.push({ path: p })
+    } catch (e: any) {
+      results.push({ path: p, error: e.message })
+    }
+  }
+  return results
+})
+
 // PTY management
 let ptyProcess: pty.IPty | null = null
 

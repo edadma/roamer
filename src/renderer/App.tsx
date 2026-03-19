@@ -25,6 +25,9 @@ declare global {
       readDirectory: (path: string) => Promise<FileEntry[]>
       getHome: () => Promise<string>
       getCwd: () => Promise<string>
+      copyFiles: (sources: string[], destDir: string) => Promise<{ src: string; dest: string; error?: string }[]>
+      moveFiles: (sources: string[], destDir: string) => Promise<{ src: string; dest: string; error?: string }[]>
+      deleteFiles: (paths: string[]) => Promise<{ path: string; error?: string }[]>
       ptySpawn: (cwd: string) => Promise<void>
       ptyWrite: (data: string) => void
       ptyResize: (cols: number, rows: number) => void
@@ -133,6 +136,9 @@ export default function App() {
   const rightPanel = useFilePanel(cwd)
   const active = activePanel === 'left' ? leftPanel : rightPanel
 
+  // Internal clipboard for file operations
+  const [clipboard, setClipboard] = useState<{ paths: string[]; mode: 'copy' | 'cut' } | null>(null)
+
   const xtermRef = useRef<XTerm | null>(null)
 
   useEffect(() => {
@@ -202,6 +208,60 @@ export default function App() {
     document.addEventListener('mouseup', refocus)
     return () => document.removeEventListener('mouseup', refocus)
   }, [])
+
+  // File operation keyboard shortcuts (Cmd+C, Cmd+X, Cmd+V, Cmd+Backspace)
+  useEffect(() => {
+    const handler = (e: KeyboardEvent) => {
+      if (!e.metaKey && !e.ctrlKey) return
+      // Don't intercept when typing in path bar
+      if ((e.target as HTMLElement).tagName === 'INPUT') return
+
+      const key = e.key.toLowerCase()
+
+      if (key === 'c' && active.selected.size > 0) {
+        e.preventDefault()
+        e.stopPropagation()
+        setClipboard({ paths: [...active.selected], mode: 'copy' })
+      } else if (key === 'x' && active.selected.size > 0) {
+        e.preventDefault()
+        e.stopPropagation()
+        setClipboard({ paths: [...active.selected], mode: 'cut' })
+      } else if (key === 'v' && clipboard) {
+        e.preventDefault()
+        e.stopPropagation()
+        const dest = active.currentPath
+        const op = clipboard.mode === 'cut'
+          ? window.roamer.moveFiles(clipboard.paths, dest)
+          : window.roamer.copyFiles(clipboard.paths, dest)
+        op.then((results) => {
+          const errors = results.filter((r) => r.error)
+          if (errors.length > 0) {
+            active.setError(`Failed: ${errors.map((e) => e.error).join(', ')}`)
+          }
+          if (clipboard.mode === 'cut') setClipboard(null)
+          // Refresh both panels
+          leftPanel.refresh()
+          rightPanel.refresh()
+        })
+      } else if (key === 'backspace' && active.selected.size > 0) {
+        e.preventDefault()
+        e.stopPropagation()
+        const paths = [...active.selected]
+        window.roamer.deleteFiles(paths).then((results) => {
+          const errors = results.filter((r) => r.error)
+          if (errors.length > 0) {
+            active.setError(`Failed: ${errors.map((e) => e.error).join(', ')}`)
+          }
+          active.setSelected(new Set())
+          leftPanel.refresh()
+          rightPanel.refresh()
+        })
+      }
+    }
+    // Use capture to intercept before xterm
+    window.addEventListener('keydown', handler, true)
+    return () => window.removeEventListener('keydown', handler, true)
+  }, [active, clipboard, leftPanel, rightPanel])
 
   // Spawn PTY once we have a path
   const ptySpawned = useRef(false)

@@ -19,6 +19,7 @@ export interface FilePanelState {
   goForward: () => void
   goUp: () => void
   setShowHidden: (v: boolean) => void
+  refresh: () => void
   error: string | null
   setError: (e: string | null) => void
 }
@@ -31,6 +32,9 @@ export function useFilePanel(initialPath: string): FilePanelState {
   const [forwardHistory, setForwardHistory] = useState<string[]>([])
   const [error, setError] = useState<string | null>(null)
   const [selected, setSelected] = useState<Set<string>>(new Set())
+  const [refreshCounter, setRefreshCounter] = useState(0)
+
+  const refresh = useCallback(() => setRefreshCounter((c) => c + 1), [])
 
   useEffect(() => {
     if (!currentPath) return
@@ -50,7 +54,7 @@ export function useFilePanel(initialPath: string): FilePanelState {
       }
       setTimeout(() => setError(`Cannot open: ${badPath}`), 0)
     })
-  }, [currentPath])
+  }, [currentPath, refreshCounter])
 
   useEffect(() => {
     if (initialPath && !currentPath) setCurrentPath(initialPath)
@@ -93,7 +97,7 @@ export function useFilePanel(initialPath: string): FilePanelState {
   return {
     currentPath, entries, visibleEntries, showHidden, history, forwardHistory,
     selected, setSelected,
-    navigate, goBack, goForward, goUp, setShowHidden, error, setError,
+    navigate, goBack, goForward, goUp, setShowHidden, refresh, error, setError,
   }
 }
 
