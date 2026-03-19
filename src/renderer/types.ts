@@ -4,5 +4,7 @@ export interface FileEntry {
   isDirectory: boolean
   size: number
   modifiedAt: string
+  mode: number
+  owner: string
   extension: string
 }

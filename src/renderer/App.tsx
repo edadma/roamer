@@ -3,7 +3,7 @@ import { Typography, Button } from 'asterui'
 import { Terminal as XTerm } from '@xterm/xterm'
 import { FitAddon } from '@xterm/addon-fit'
 import '@xterm/xterm/css/xterm.css'
-import { ArrowLeftIcon, ArrowRightIcon, ArrowUpIcon, PencilSquareIcon, HomeIcon, ComputerDesktopIcon, DocumentIcon, ArrowDownTrayIcon, FolderIcon, ViewColumnsIcon } from '@aster-ui/icons'
+import { ArrowLeftIcon, ArrowRightIcon, ArrowUpIcon, PencilSquareIcon, HomeIcon, ComputerDesktopIcon, DocumentIcon, ArrowDownTrayIcon, FolderIcon, ViewColumnsIcon, ListBulletIcon, Squares2X2Icon } from '@aster-ui/icons'
 import Splitter from './Splitter'
 import FilePanel, { useFilePanel, type FilePanelState } from './FilePanel'
 import InfoPanel from './InfoPanel'
@@ -147,6 +147,19 @@ export default function App() {
   const leftPanel = useFilePanel(cwd)
   const rightPanel = useFilePanel(cwd)
   const active = activePanel === 'left' ? leftPanel : rightPanel
+
+  // Update or clear inspected file when entries change
+  useEffect(() => {
+    if (!inspectedFile) return
+    const updated = active.visibleEntries.find((e) => e.path === inspectedFile.path)
+    if (updated) {
+      // Entry still exists — update with fresh data (e.g. after rename the path changes)
+      if (updated.name !== inspectedFile.name) setInspectedFile(updated)
+    } else {
+      // Entry no longer exists — clear preview
+      setInspectedFile(null)
+    }
+  }, [active.visibleEntries])
 
   // Internal clipboard for file operations
   const [clipboard, setClipboard] = useState<{ paths: string[]; mode: 'copy' | 'cut' } | null>(null)
@@ -438,6 +451,13 @@ export default function App() {
           onClick={active.goUp}
         />
         <PathBar currentPath={active.currentPath} onNavigate={active.navigate} onEditStart={() => active.setError(null)} />
+        <Button
+          variant="ghost"
+          size="sm"
+          shape="square"
+          icon={active.viewMode === 'grid' ? <ListBulletIcon /> : <Squares2X2Icon />}
+          onClick={() => active.setViewMode(active.viewMode === 'grid' ? 'list' : 'grid')}
+        />
         <Button
           variant="ghost"
           size="sm"

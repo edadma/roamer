@@ -47,10 +47,14 @@ ipcMain.handle('read-directory', async (_event, dirPath: string) => {
       const fullPath = path.join(dirPath, entry.name)
       let size = 0
       let modifiedAt = ''
+      let mode = 0
+      let owner = ''
       try {
         const stat = await fs.stat(fullPath)
         size = stat.size
         modifiedAt = stat.mtime.toISOString()
+        mode = stat.mode
+        owner = `${stat.uid}:${stat.gid}`
       } catch {
         // Broken symlink or permission denied
       }
@@ -61,6 +65,8 @@ ipcMain.handle('read-directory', async (_event, dirPath: string) => {
         isDirectory: entry.isDirectory(),
         size,
         modifiedAt,
+        mode,
+        owner,
         extension: ext,
       }
     })

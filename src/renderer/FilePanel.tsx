@@ -5,6 +5,20 @@ import type { FileEntry } from './types'
 
 const { Text } = Typography
 
+function formatSize(bytes: number): string {
+  if (bytes < 1024) return `${bytes} B`
+  if (bytes < 1024 * 1024) return `${(bytes / 1024).toFixed(1)} KB`
+  if (bytes < 1024 * 1024 * 1024) return `${(bytes / (1024 * 1024)).toFixed(1)} MB`
+  return `${(bytes / (1024 * 1024 * 1024)).toFixed(1)} GB`
+}
+
+function formatDate(iso: string): string {
+  if (!iso) return ''
+  return new Date(iso).toLocaleDateString(undefined, { year: 'numeric', month: 'short', day: 'numeric', hour: '2-digit', minute: '2-digit' })
+}
+
+export type ViewMode = 'grid' | 'list'
+
 export interface FilePanelState {
   currentPath: string
   entries: FileEntry[]
@@ -20,6 +34,8 @@ export interface FilePanelState {
   goUp: () => void
   setShowHidden: (v: boolean) => void
   refresh: () => void
+  viewMode: ViewMode
+  setViewMode: (mode: ViewMode) => void
   error: string | null
   setError: (e: string | null) => void
   newItem: { type: 'file' | 'folder' } | null
@@ -108,6 +124,8 @@ export function useFilePanel(initialPath: string): FilePanelState {
     if (parent !== currentPath) navigate(parent)
   }, [currentPath, navigate])
 
+  const [viewMode, setViewMode] = useState<ViewMode>('grid')
+
   const [newItem, setNewItem] = useState<{ type: 'file' | 'folder' } | null>(null)
 
   const startNewItem = useCallback((type: 'file' | 'folder') => {
@@ -154,7 +172,9 @@ export function useFilePanel(initialPath: string): FilePanelState {
   return {
     currentPath, entries, visibleEntries, showHidden, history, forwardHistory,
     selected, setSelected,
-    navigate, goBack, goForward, goUp, setShowHidden, refresh, error, setError,
+    navigate, goBack, goForward, goUp, setShowHidden, refresh,
+    viewMode, setViewMode,
+    error, setError,
     newItem, startNewItem, commitNewItem, cancelNewItem,
     renamingPath, startRename, commitRename, cancelRename,
   }
@@ -443,42 +463,133 @@ export default function FilePanel({ panel, focused, onFocus, onDrop, onFileClick
     pointerEvents: 'none' as const,
   } : null
 
+  // Shared item event props
+  const itemProps = (entry: FileEntry, index: number) => ({
+    'data-path': entry.path,
+    draggable: true,
+    onDragStart: (e: React.DragEvent<HTMLElement>) => handleDragStart(e, entry),
+    onDragOver: (e: React.DragEvent<HTMLElement>) => handleFolderDragOver(e, entry),
+    onDragLeave: () => setDropTarget(null),
+    onDrop: (e: React.DragEvent<HTMLElement>) => handleFolderDrop(e, entry),
+    onClick: (e: React.MouseEvent) => handleItemClick(e, entry, index),
+    onDoubleClick: () => handleDoubleClick(entry),
+    onContextMenu: (e: React.MouseEvent) => handleContextMenu(e, entry),
+  })
+
+  const renameInput = (entry: FileEntry) => (
+    <input
+      className="input input-xs input-bordered"
+      style={{ width: '100%', fontSize: 11 }}
+      defaultValue={entry.name}
+      autoFocus
+      onClick={(e) => e.stopPropagation()}
+      onKeyDown={(e) => {
+        if (e.key === 'Enter') panel.commitRename(entry.path, (e.target as HTMLInputElement).value)
+        if (e.key === 'Escape') panel.cancelRename()
+        e.stopPropagation()
+      }}
+      onBlur={(e) => panel.commitRename(entry.path, e.target.value)}
+    />
+  )
+
+  const containerProps = {
+    ref: containerRef,
+    onClick: handleBackgroundClick,
+    onMouseDown: handleMouseDown,
+    onDragOver: handlePanelDragOver,
+    onDragLeave: handlePanelDragLeave,
+    onDrop: handlePanelDrop,
+    onContextMenu: (e: React.MouseEvent) => handleContextMenu(e),
+  }
+
+  const outlineStyle = {
+    outline: focused ? '2px solid oklch(0.65 0.2 250)' : '2px solid transparent',
+    outlineOffset: '-2px',
+  }
+
   return (
     <div
-      ref={containerRef}
-      className="h-full overflow-auto p-3"
+      {...containerProps}
+      className="h-full overflow-auto"
       style={{
-        display: 'grid',
-        gridTemplateColumns: 'repeat(auto-fill, minmax(90px, 1fr))',
-        gap: '2px',
-        alignContent: 'start',
-        outline: focused ? '2px solid oklch(0.65 0.2 250)' : '2px solid transparent',
-        outlineOffset: '-2px',
+        ...outlineStyle,
         position: 'relative',
+        ...(panel.viewMode === 'grid' ? {
+          display: 'grid',
+          gridTemplateColumns: 'repeat(auto-fill, minmax(90px, 1fr))',
+          gap: '2px',
+          alignContent: 'start',
+          padding: 12,
+        } : {
+          display: 'flex',
+          flexDirection: 'column' as const,
+        }),
       }}
-      onClick={handleBackgroundClick}
-      onMouseDown={handleMouseDown}
-      onDragOver={handlePanelDragOver}
-      onDragLeave={handlePanelDragLeave}
-      onDrop={handlePanelDrop}
-      onContextMenu={(e) => handleContextMenu(e)}
     >
+      {panel.viewMode === 'list' && (
+        <div
+          className="flex items-center gap-2 px-3 py-1 border-b border-base-300 text-xs shrink-0"
+          style={{ color: 'oklch(0.6 0 0)', fontWeight: 600, position: 'sticky', top: 0, backgroundColor: 'var(--fallback-b1,oklch(var(--b1)))', zIndex: 1 }}
+        >
+          <span style={{ width: 28 }} />
+          <span style={{ flex: 1 }}>Name</span>
+          <span style={{ width: 80, textAlign: 'right' }}>Size</span>
+          <span style={{ width: 60, textAlign: 'right' }}>Perms</span>
+          <span style={{ width: 70, textAlign: 'right' }}>Owner</span>
+          <span style={{ width: 160, textAlign: 'right' }}>Modified</span>
+        </div>
+      )}
       {panel.visibleEntries.map((entry, index) => {
         const Icon = getFileIcon(entry.extension, entry.isDirectory)
         const isSelected = panel.selected.has(entry.path)
         const isDropTarget = dropTarget === entry.path
+        const bgColor = isSelected
+          ? 'oklch(0.65 0.2 250 / 0.2)'
+          : isDropTarget
+          ? 'oklch(0.65 0.2 150 / 0.2)'
+          : undefined
+
+        if (panel.viewMode === 'list') {
+          return (
+            <div
+              key={entry.name}
+              {...itemProps(entry, index)}
+              className="flex items-center gap-2 px-3 py-1 cursor-default"
+              style={{
+                backgroundColor: bgColor,
+                borderRadius: 4,
+                outline: isDropTarget ? '2px solid oklch(0.65 0.2 150)' : undefined,
+                fontSize: 13,
+              }}
+            >
+              <Icon size="sm" className={entry.isDirectory ? 'text-warning' : 'text-base-content'} />
+              {panel.renamingPath === entry.path ? (
+                <div style={{ flex: 1 }}>{renameInput(entry)}</div>
+              ) : (
+                <span style={{ flex: 1, overflow: 'hidden', textOverflow: 'ellipsis', whiteSpace: 'nowrap' }}>
+                  {entry.name}
+                </span>
+              )}
+              <span style={{ width: 80, textAlign: 'right', color: 'oklch(0.6 0 0)', fontSize: 12 }}>
+                {entry.isDirectory ? '' : formatSize(entry.size)}
+              </span>
+              <span style={{ width: 60, textAlign: 'right', color: 'oklch(0.6 0 0)', fontSize: 12, fontFamily: 'monospace' }}>
+                {(entry.mode & 0o777).toString(8)}
+              </span>
+              <span style={{ width: 70, textAlign: 'right', color: 'oklch(0.6 0 0)', fontSize: 12 }}>
+                {entry.owner}
+              </span>
+              <span style={{ width: 160, textAlign: 'right', color: 'oklch(0.6 0 0)', fontSize: 12 }}>
+                {formatDate(entry.modifiedAt)}
+              </span>
+            </div>
+          )
+        }
+
         return (
           <button
             key={entry.name}
-            data-path={entry.path}
-            draggable
-            onDragStart={(e) => handleDragStart(e, entry)}
-            onDragOver={(e) => handleFolderDragOver(e, entry)}
-            onDragLeave={() => setDropTarget(null)}
-            onDrop={(e) => handleFolderDrop(e, entry)}
-            onClick={(e) => handleItemClick(e, entry, index)}
-            onDoubleClick={() => handleDoubleClick(entry)}
-            onContextMenu={(e) => handleContextMenu(e, entry)}
+            {...itemProps(entry, index)}
             className="btn btn-ghost"
             style={{
               display: 'flex',
@@ -490,11 +601,7 @@ export default function FilePanel({ panel, focused, onFocus, onDrop, onFileClick
               height: 'auto',
               minHeight: '72px',
               cursor: 'default',
-              backgroundColor: isSelected
-                ? 'oklch(0.65 0.2 250 / 0.2)'
-                : isDropTarget
-                ? 'oklch(0.65 0.2 150 / 0.2)'
-                : undefined,
+              backgroundColor: bgColor,
               borderRadius: 8,
               outline: isDropTarget ? '2px solid oklch(0.65 0.2 150)' : undefined,
             }}
@@ -504,19 +611,7 @@ export default function FilePanel({ panel, focused, onFocus, onDrop, onFileClick
               className={entry.isDirectory ? 'text-warning' : 'text-base-content'}
             />
             {panel.renamingPath === entry.path ? (
-              <input
-                className="input input-xs input-bordered text-center"
-                style={{ width: '100%', fontSize: 11 }}
-                defaultValue={entry.name}
-                autoFocus
-                onClick={(e) => e.stopPropagation()}
-                onKeyDown={(e) => {
-                  if (e.key === 'Enter') panel.commitRename(entry.path, (e.target as HTMLInputElement).value)
-                  if (e.key === 'Escape') panel.cancelRename()
-                  e.stopPropagation()
-                }}
-                onBlur={(e) => panel.commitRename(entry.path, e.target.value)}
-              />
+              <div style={{ textAlign: 'center' }}>{renameInput(entry)}</div>
             ) : (
               <Text
                 size="xs"
