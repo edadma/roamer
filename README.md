@@ -21,21 +21,24 @@ brew install --cask edadma/tap/roamer
 - **Undo** — Cmd+Z to undo moves, copies, and deletes
 - **Rename** — F2 or right-click → Rename for inline editing
 - **Create** — Cmd+N (new file), Cmd+Shift+N (new folder), or right-click → New File/Folder
-- **Open files** — double-click opens in default app
+- **Open files** — double-click opens in default app; executables run in the terminal
+- **Run executables** — double-click or right-click → Run in Terminal
 - **Selection** — click, Cmd+click (toggle), Shift+click (range), Cmd+A (select all), rubber band drag
 - **Git status indicators** — files color-coded by status (modified, staged, untracked, deleted, renamed)
 - **Hidden files toggle** in the status bar
 - **Live directory watching** — panels auto-refresh when files change on disk
 
 ### Info Panel
-- **Click a file** to show details panel on the right — image preview, text preview (first 4KB), file size, dates, permissions
+- **Click a file** to show details panel on the right — image preview, text preview (first 4KB), file size, dates, permissions, owner
 - **Resizable** via splitter, dismiss with X or click empty space
 
 ### Navigation
 - **Back/Forward/Up** buttons with tooltips
 - **Editable breadcrumb path bar** — click segments to navigate, double-click or pencil icon to type a path
-- **Places sidebar** — bookmarked locations (Home, Desktop, Documents, Downloads)
+- **Places sidebar** — bookmarked locations (Home, Desktop, Documents, Downloads); right-click a folder → Add to Places
+- **Persistent places** — custom bookmarks saved to PetraDB (file-backed in production)
 - **Window title** shows current path
+- **CLI launcher** — type `roamer` from any terminal to open in the current directory
 
 ### Integrated Terminal
 - **Full shell** (zsh) at the bottom of the window, connected via node-pty
