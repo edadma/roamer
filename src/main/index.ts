@@ -47,7 +47,7 @@ const dbDir = path.join(app.getPath('userData'), 'db')
 if (!isDev) try { mkdirSync(dbDir, { recursive: true }) } catch {}
 const session = isDev
   ? new Session({ storage: 'memory' })
-  : new Session({ storage: 'file', path: path.join(dbDir, 'roamer.db') })
+  : new Session({ storage: 'persistent', path: path.join(dbDir, 'roamer.db') })
 const db = quarry(session)
 
 const places = table('places', {
