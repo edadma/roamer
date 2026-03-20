@@ -36,3 +36,12 @@ export async function initDb() {
 export async function getPlaces(): Promise<Place[]> {
   return db.select(places).execute()
 }
+
+export async function addPlace(name: string, path: string): Promise<void> {
+  const existing = await db.select(places).execute()
+  const maxOrder = existing.reduce((max, p) => Math.max(max, p.sortOrder), -1)
+  await db.insert(places).values(
+    { name, path, icon: 'folder', sortOrder: maxOrder + 1, isDefault: false },
+  ).execute()
+}
+

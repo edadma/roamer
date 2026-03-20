@@ -238,10 +238,11 @@ interface FilePanelProps {
   onFocus: () => void
   onDrop?: (sourcePaths: string[], destDir: string, copy: boolean) => void
   onFileClick?: (entry: FileEntry | null) => void
+  onAddPlace?: (name: string, path: string) => void
   cutPaths?: Set<string>
 }
 
-export default function FilePanel({ panel, focused, onFocus, onDrop, onFileClick, cutPaths }: FilePanelProps) {
+export default function FilePanel({ panel, focused, onFocus, onDrop, onFileClick, onAddPlace, cutPaths }: FilePanelProps) {
   const containerRef = useRef<HTMLDivElement>(null)
   const lastClickedIndex = useRef<number>(-1)
   const wasRubberBand = useRef(false)
@@ -757,6 +758,9 @@ export default function FilePanel({ panel, focused, onFocus, onDrop, onFileClick
                   window.roamer.ptyWrite(`${escaped}\n`)
                   setContextMenu(null)
                 }}>Run in Terminal</a></li>
+              )}
+              {contextMenu.entry.isDirectory && onAddPlace && (
+                <li><a onClick={() => { onAddPlace(contextMenu.entry!.name, contextMenu.entry!.path); setContextMenu(null) }}>Add to Places</a></li>
               )}
               <li><a onClick={() => { panel.startRename(contextMenu.entry!.path); setContextMenu(null) }}>Rename</a></li>
               <li><a onClick={() => {
