@@ -1,4 +1,4 @@
-import { app, BrowserWindow, ipcMain, shell, Menu } from 'electron'
+import { app, BrowserWindow, ipcMain, shell, Menu, nativeImage } from 'electron'
 import path from 'path'
 import fs from 'fs/promises'
 import { watch, readFileSync, mkdirSync, type FSWatcher } from 'fs'
@@ -59,6 +59,35 @@ const places = table('places', {
   isDefault: boolean('is_default').notNull().default(false),
 })
 
+const thumbnails = table('thumbnails', {
+  id: serial('id').primaryKey(),
+  path: text('path').notNull().unique(),
+  mtime: text('mtime').notNull(),
+  data: text('data').notNull(), // base64 JPEG
+})
+
+const THUMB_SIZE = 64
+
+async function generateThumbnail(filePath: string): Promise<{ data: string; format: string } | null> {
+  try {
+    const buf = await fs.readFile(filePath)
+    const img = nativeImage.createFromBuffer(buf)
+    if (img.isEmpty()) {
+      // nativeImage can't handle this format — use raw file if small enough
+      if (buf.length < 512 * 1024) {
+        const ext = path.extname(filePath).slice(1).toLowerCase()
+        const mime = ext === 'gif' ? 'image/gif' : ext === 'webp' ? 'image/webp' : ext === 'bmp' ? 'image/bmp' : 'image/png'
+        return { data: buf.toString('base64'), format: mime }
+      }
+      return null
+    }
+    const resized = img.resize({ width: THUMB_SIZE, height: THUMB_SIZE })
+    return { data: resized.toJPEG(80).toString('base64'), format: 'image/jpeg' }
+  } catch {
+    return null
+  }
+}
+
 async function initDb() {
   try {
     await db.createTable(places)
@@ -70,6 +99,11 @@ async function initDb() {
       { name: 'Documents', path: `${home}/Documents`, icon: 'documents', sortOrder: 2, isDefault: true },
       { name: 'Downloads', path: `${home}/Downloads`, icon: 'downloads', sortOrder: 3, isDefault: true },
     ).execute()
+  } catch {
+    // Table already exists
+  }
+  try {
+    await db.createTable(thumbnails)
   } catch {
     // Table already exists
   }
@@ -193,6 +227,56 @@ ipcMain.handle('read-directory', async (_event, dirPath: string) => {
   return results
 })
 
+// Thumbnails
+const imageExts = new Set(['png', 'jpg', 'jpeg', 'gif', 'webp', 'bmp', 'ico', 'svg'])
+
+// Prevent concurrent thumbnail generation for the same file
+const thumbInFlight = new Map<string, Promise<string | null>>()
+
+ipcMain.handle('get-thumbnail', async (_event, filePath: string, mtime: string) => {
+  const ext = path.extname(filePath).slice(1).toLowerCase()
+  if (!imageExts.has(ext)) return null
+
+  // Deduplicate concurrent requests
+  const existing = thumbInFlight.get(filePath)
+  if (existing) return existing
+
+  const work = (async () => {
+    // Check cache
+    const cached = await db.select(thumbnails).execute()
+    const match = cached.find((t: any) => t.path === filePath)
+    if (match && match.mtime === mtime) {
+      return match.data as string // already a data URL
+    }
+
+    // Generate
+    const result = await generateThumbnail(filePath)
+    if (!result) return null
+
+    const dataUrl = `data:${result.format};base64,${result.data}`
+
+    // Store in cache
+    try {
+      if (match) {
+        await session.execute(`UPDATE thumbnails SET mtime = '${mtime}', data = '${dataUrl.replace(/'/g, "''")}'  WHERE path = '${filePath.replace(/'/g, "''")}'`)
+      } else {
+        await db.insert(thumbnails).values({ path: filePath, mtime, data: dataUrl }).execute()
+      }
+    } catch {
+      // Race condition — another request already inserted
+    }
+
+    return dataUrl
+  })()
+
+  thumbInFlight.set(filePath, work)
+  try {
+    return await work
+  } finally {
+    thumbInFlight.delete(filePath)
+  }
+})
+
 // Git status
 ipcMain.handle('git-status', async (_event, dirPath: string) => {
   try {
@@ -236,8 +320,16 @@ ipcMain.handle('read-file-preview', async (_event, filePath: string, maxBytes: n
   return buf.slice(0, bytesRead).toString('utf-8')
 })
 
-ipcMain.handle('get-file-url', (_event, filePath: string) => {
-  return `file://${filePath}`
+ipcMain.handle('read-image-data-url', async (_event, filePath: string) => {
+  const buf = await fs.readFile(filePath)
+  const ext = path.extname(filePath).slice(1).toLowerCase()
+  const mimeMap: Record<string, string> = {
+    png: 'image/png', jpg: 'image/jpeg', jpeg: 'image/jpeg',
+    gif: 'image/gif', webp: 'image/webp', bmp: 'image/bmp',
+    svg: 'image/svg+xml', ico: 'image/x-icon',
+  }
+  const mime = mimeMap[ext] || 'image/png'
+  return `data:${mime};base64,${buf.toString('base64')}`
 })
 
 // Open file with default app

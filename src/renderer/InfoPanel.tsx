@@ -42,6 +42,7 @@ export default function InfoPanel({ entry, onDismiss }: InfoPanelProps) {
     size: number; modifiedAt: string; createdAt: string; isDirectory: boolean; mode: number
   } | null>(null)
   const [preview, setPreview] = useState<string | null>(null)
+  const [imageSrc, setImageSrc] = useState<string | null>(null)
 
   const ext = entry.extension.toLowerCase()
   const isImage = imageExts.has(ext)
@@ -50,7 +51,11 @@ export default function InfoPanel({ entry, onDismiss }: InfoPanelProps) {
   useEffect(() => {
     setInfo(null)
     setPreview(null)
+    setImageSrc(null)
     window.roamer.getFileInfo(entry.path).then(setInfo).catch(() => {})
+    if (isImage && !entry.isDirectory) {
+      window.roamer.readImageAsDataUrl(entry.path).then(setImageSrc).catch(() => {})
+    }
     if (isText && !entry.isDirectory) {
       window.roamer.readFilePreview(entry.path, 4096).then(setPreview).catch(() => {})
     }
@@ -72,10 +77,10 @@ export default function InfoPanel({ entry, onDismiss }: InfoPanelProps) {
       {/* Preview area — scrollable, takes remaining space */}
       <div style={{ flex: 1, minHeight: 0, overflow: 'auto' }}>
         {/* Image preview */}
-        {isImage && !entry.isDirectory && (
+        {isImage && imageSrc && (
           <div className="p-3 border-b border-base-300" style={{ display: 'flex', justifyContent: 'center' }}>
             <img
-              src={`file://${entry.path}`}
+              src={imageSrc}
               style={{ maxWidth: '100%', objectFit: 'contain', borderRadius: 4 }}
             />
           </div>

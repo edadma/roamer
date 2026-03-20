@@ -29,6 +29,7 @@ declare global {
       readDirectory: (path: string) => Promise<FileEntry[]>
       getHome: () => Promise<string>
       getCwd: () => Promise<string>
+      getThumbnail: (filePath: string, mtime: string) => Promise<string | null>
       gitStatus: (dirPath: string) => Promise<{ files: Record<string, string>; branch: string } | null>
       openFile: (filePath: string) => Promise<void>
       renameFile: (oldPath: string, newPath: string) => Promise<void>
@@ -36,6 +37,7 @@ declare global {
       createFile: (filePath: string) => Promise<void>
       getFileInfo: (filePath: string) => Promise<{ size: number; modifiedAt: string; createdAt: string; isDirectory: boolean; mode: number }>
       readFilePreview: (filePath: string, maxBytes: number) => Promise<string>
+      readImageAsDataUrl: (filePath: string) => Promise<string>
       startDrag: (filePaths: string[]) => void
       copyFiles: (sources: string[], destDir: string) => Promise<{ src: string; dest: string; error?: string }[]>
       moveFiles: (sources: string[], destDir: string) => Promise<{ src: string; dest: string; error?: string }[]>

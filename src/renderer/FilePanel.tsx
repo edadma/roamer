@@ -23,6 +23,38 @@ function formatDate(iso: string): string {
   return new Date(iso).toLocaleDateString(undefined, { year: 'numeric', month: 'short', day: 'numeric', hour: '2-digit', minute: '2-digit' })
 }
 
+const thumbImageExts = new Set(['png', 'jpg', 'jpeg', 'gif', 'webp', 'bmp', 'ico'])
+
+function Thumbnail({ entry, size }: { entry: FileEntry; size: number }) {
+  const [src, setSrc] = useState<string | null>(null)
+
+  useEffect(() => {
+    if (!thumbImageExts.has(entry.extension.toLowerCase())) return
+    let cancelled = false
+    window.roamer.getThumbnail(entry.path, entry.modifiedAt).then((dataUrl) => {
+      if (!cancelled && dataUrl) setSrc(dataUrl)
+    })
+    return () => { cancelled = true }
+  }, [entry.path, entry.modifiedAt])
+
+  if (!src) {
+    const Icon = getFileIcon(entry.extension, entry.isDirectory)
+    return <Icon size={size === 64 ? 'xl' : 'sm'} className="text-base-content" />
+  }
+
+  return (
+    <img
+      src={src}
+      style={{
+        width: size,
+        height: size,
+        objectFit: 'cover',
+        borderRadius: 4,
+      }}
+    />
+  )
+}
+
 function gitStatusColor(status: string | undefined): string | undefined {
   if (!status) return undefined
   if (status === '??') return 'oklch(0.6 0.1 150)' // untracked — muted green
@@ -636,7 +668,11 @@ export default function FilePanel({ panel, focused, onFocus, onDrop, onFileClick
                 opacity: isCut ? 0.4 : undefined,
               }}
             >
-              <Icon size="sm" className={entry.isDirectory ? 'text-warning' : 'text-base-content'} />
+              {!entry.isDirectory && thumbImageExts.has(entry.extension.toLowerCase()) ? (
+                <Thumbnail entry={entry} size={20} />
+              ) : (
+                <Icon size="sm" className={entry.isDirectory ? 'text-warning' : 'text-base-content'} />
+              )}
               {panel.renamingPath === entry.path ? (
                 <div style={{ flex: 1 }}>{renameInput(entry)}</div>
               ) : (
@@ -681,10 +717,14 @@ export default function FilePanel({ panel, focused, onFocus, onDrop, onFileClick
               opacity: isCut ? 0.4 : undefined,
             }}
           >
-            <Icon
-              size="xl"
-              className={entry.isDirectory ? 'text-warning' : 'text-base-content'}
-            />
+            {!entry.isDirectory && thumbImageExts.has(entry.extension.toLowerCase()) ? (
+              <Thumbnail entry={entry} size={64} />
+            ) : (
+              <Icon
+                size="xl"
+                className={entry.isDirectory ? 'text-warning' : 'text-base-content'}
+              />
+            )}
             {panel.renamingPath === entry.path ? (
               <div style={{ textAlign: 'center' }}>{renameInput(entry)}</div>
             ) : (
