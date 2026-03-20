@@ -807,6 +807,7 @@ export default function FilePanel({ panel, focused, onFocus, onDrop, onFileClick
               {contextMenu.entry.isDirectory && onAddPlace && (
                 <li><a onClick={() => { onAddPlace(contextMenu.entry!.name, contextMenu.entry!.path); setContextMenu(null) }}>Add to Places</a></li>
               )}
+              <li><a onClick={() => { navigator.clipboard.writeText(contextMenu.entry!.path); setContextMenu(null) }}>Copy Path</a></li>
               <li><a onClick={() => { panel.startRename(contextMenu.entry!.path); setContextMenu(null) }}>Rename</a></li>
               <li><a onClick={() => {
                 window.roamer.trashFiles([contextMenu.entry!.path])
