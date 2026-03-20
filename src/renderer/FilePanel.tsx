@@ -307,6 +307,10 @@ export default function FilePanel({ panel, focused, onFocus, onDrop, onFileClick
     }
     if (entry.isDirectory) {
       panel.navigate(entry.path)
+    } else if (entry.mode & 0o111) {
+      // Executable — run in terminal
+      const escaped = entry.path.replace(/ /g, '\\ ')
+      window.roamer.ptyWrite(`${escaped}\n`)
     } else {
       window.roamer.openFile(entry.path)
     }
@@ -744,6 +748,16 @@ export default function FilePanel({ panel, focused, onFocus, onDrop, onFileClick
         >
           {contextMenu.entry ? (
             <>
+              {!contextMenu.entry.isDirectory && (
+                <li><a onClick={() => { window.roamer.openFile(contextMenu.entry!.path); setContextMenu(null) }}>Open</a></li>
+              )}
+              {!contextMenu.entry.isDirectory && (contextMenu.entry.mode & 0o111) !== 0 && (
+                <li><a onClick={() => {
+                  const escaped = contextMenu.entry!.path.replace(/ /g, '\\ ')
+                  window.roamer.ptyWrite(`${escaped}\n`)
+                  setContextMenu(null)
+                }}>Run in Terminal</a></li>
+              )}
               <li><a onClick={() => { panel.startRename(contextMenu.entry!.path); setContextMenu(null) }}>Rename</a></li>
               <li><a onClick={() => {
                 window.roamer.trashFiles([contextMenu.entry!.path])
