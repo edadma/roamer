@@ -101,6 +101,9 @@ ipcMain.handle('get-home', () => {
 })
 
 ipcMain.handle('get-cwd', () => {
+  // Check for --cwd=<path> argument (from CLI launcher)
+  const cwdArg = process.argv.find((a) => a.startsWith('--cwd='))
+  if (cwdArg) return cwdArg.split('=').slice(1).join('=')
   const cwd = process.cwd()
   // When launched from Finder, cwd is /
   return cwd === '/' ? app.getPath('home') : cwd

@@ -20,7 +20,11 @@
       "output": "release"
     },
     "files": [
-      "dist/**/*"
+      "dist/**/*",
+      "bin/**/*"
+    ],
+    "extraResources": [
+      { "from": "bin", "to": "bin" }
     ],
     "mac": {
       "target": "dmg",
