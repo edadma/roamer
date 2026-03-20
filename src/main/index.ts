@@ -202,20 +202,41 @@ ipcMain.handle('read-directory', async (_event, dirPath: string) => {
       let modifiedAt = ''
       let mode = 0
       let owner = ''
+      let isSymlink = false
+      let linkTarget: string | null = null
       try {
-        const stat = await fs.stat(fullPath)
-        size = stat.size
-        modifiedAt = stat.mtime.toISOString()
-        mode = stat.mode
-        owner = `${getUserName(stat.uid)}:${getGroupName(stat.gid)}`
+        const lstat = await fs.lstat(fullPath)
+        isSymlink = lstat.isSymbolicLink()
+        if (isSymlink) {
+          linkTarget = await fs.readlink(fullPath)
+          // Get target's info for size/dates
+          try {
+            const stat = await fs.stat(fullPath)
+            size = stat.size
+            modifiedAt = stat.mtime.toISOString()
+            mode = stat.mode
+            owner = `${getUserName(stat.uid)}:${getGroupName(stat.gid)}`
+          } catch {
+            // Dangling symlink — use lstat info
+            mode = lstat.mode
+            owner = `${getUserName(lstat.uid)}:${getGroupName(lstat.gid)}`
+          }
+        } else {
+          size = lstat.size
+          modifiedAt = lstat.mtime.toISOString()
+          mode = lstat.mode
+          owner = `${getUserName(lstat.uid)}:${getGroupName(lstat.gid)}`
+        }
       } catch {
-        // Broken symlink or permission denied
+        // Permission denied
       }
       const ext = entry.isDirectory() ? '' : path.extname(entry.name).slice(1)
       return {
         name: entry.name,
         path: fullPath,
         isDirectory: entry.isDirectory(),
+        isSymlink,
+        linkTarget,
         size,
         modifiedAt,
         mode,

@@ -12,10 +12,11 @@ function formatSize(bytes: number): string {
   return `${(bytes / (1024 * 1024 * 1024)).toFixed(1)} GB`
 }
 
-function formatPermissions(mode: number): string {
+function formatPermissions(mode: number, isDirectory: boolean, isSymlink: boolean): string {
+  const prefix = isSymlink ? 'l' : isDirectory ? 'd' : '-'
   const perms = mode & 0o777
   const chars = ['---', '--x', '-w-', '-wx', 'r--', 'r-x', 'rw-', 'rwx']
-  return chars[(perms >> 6) & 7] + chars[(perms >> 3) & 7] + chars[perms & 7]
+  return prefix + chars[(perms >> 6) & 7] + chars[(perms >> 3) & 7] + chars[perms & 7]
 }
 
 function formatDate(iso: string): string {
@@ -683,13 +684,16 @@ export default function FilePanel({ panel, focused, onFocus, onDrop, onFileClick
               ) : (
                 <span style={{ flex: 1, overflow: 'hidden', textOverflow: 'ellipsis', whiteSpace: 'nowrap', color: gitColor }}>
                   {entry.name}
+                  {entry.isSymlink && entry.linkTarget && (
+                    <span style={{ color: 'oklch(0.5 0 0)', marginLeft: 6 }}>→ {entry.linkTarget}</span>
+                  )}
                 </span>
               )}
               <span style={{ width: 80, textAlign: 'right', color: 'oklch(0.6 0 0)', fontSize: 12 }}>
                 {entry.isDirectory ? '' : formatSize(entry.size)}
               </span>
               <span style={{ width: 80, textAlign: 'right', color: 'oklch(0.6 0 0)', fontSize: 12, fontFamily: 'monospace' }}>
-                {formatPermissions(entry.mode)}
+                {formatPermissions(entry.mode, entry.isDirectory, entry.isSymlink)}
               </span>
               <span style={{ width: 70, textAlign: 'right', color: 'oklch(0.6 0 0)', fontSize: 12 }}>
                 {entry.owner}

@@ -26,10 +26,11 @@ function formatDate(iso: string): string {
   return new Date(iso).toLocaleString()
 }
 
-function formatPermissions(mode: number): string {
+function formatPermissions(mode: number, isDirectory: boolean, isSymlink: boolean): string {
+  const prefix = isSymlink ? 'l' : isDirectory ? 'd' : '-'
   const perms = mode & 0o777
   const chars = ['---', '--x', '-w-', '-wx', 'r--', 'r-x', 'rw-', 'rwx']
-  return chars[(perms >> 6) & 7] + chars[(perms >> 3) & 7] + chars[perms & 7]
+  return prefix + chars[(perms >> 6) & 7] + chars[(perms >> 3) & 7] + chars[perms & 7]
 }
 
 interface InfoPanelProps {
@@ -127,12 +128,18 @@ export default function InfoPanel({ entry, onDismiss }: InfoPanelProps) {
               </tr>
               <tr>
                 <td style={{ padding: '2px 8px 2px 0', color: 'oklch(0.6 0 0)' }}>Permissions</td>
-                <td style={{ padding: '2px 0', fontFamily: 'monospace' }}>{formatPermissions(info.mode)}</td>
+                <td style={{ padding: '2px 0', fontFamily: 'monospace' }}>{formatPermissions(info.mode, info.isDirectory, entry.isSymlink)}</td>
               </tr>
               <tr>
                 <td style={{ padding: '2px 8px 2px 0', color: 'oklch(0.6 0 0)' }}>Owner</td>
                 <td style={{ padding: '2px 0' }}>{entry.owner}</td>
               </tr>
+              {entry.isSymlink && entry.linkTarget && (
+                <tr>
+                  <td style={{ padding: '2px 8px 2px 0', color: 'oklch(0.6 0 0)' }}>Link</td>
+                  <td style={{ padding: '2px 0' }}>→ {entry.linkTarget}</td>
+                </tr>
+              )}
             </tbody>
           </table>
         </div>
