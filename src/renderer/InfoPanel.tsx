@@ -27,7 +27,9 @@ function formatDate(iso: string): string {
 }
 
 function formatPermissions(mode: number): string {
-  return (mode & 0o777).toString(8)
+  const perms = mode & 0o777
+  const chars = ['---', '--x', '-w-', '-wx', 'r--', 'r-x', 'rw-', 'rwx']
+  return chars[(perms >> 6) & 7] + chars[(perms >> 3) & 7] + chars[perms & 7]
 }
 
 interface InfoPanelProps {
@@ -121,6 +123,10 @@ export default function InfoPanel({ entry, onDismiss }: InfoPanelProps) {
               <tr>
                 <td style={{ padding: '2px 8px 2px 0', color: 'oklch(0.6 0 0)' }}>Permissions</td>
                 <td style={{ padding: '2px 0', fontFamily: 'monospace' }}>{formatPermissions(info.mode)}</td>
+              </tr>
+              <tr>
+                <td style={{ padding: '2px 8px 2px 0', color: 'oklch(0.6 0 0)' }}>Owner</td>
+                <td style={{ padding: '2px 0' }}>{entry.owner}</td>
               </tr>
             </tbody>
           </table>
