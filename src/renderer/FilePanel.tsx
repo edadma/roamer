@@ -25,8 +25,13 @@ function formatDate(iso: string): string {
 
 const thumbImageExts = new Set(['png', 'jpg', 'jpeg', 'gif', 'webp', 'bmp', 'ico'])
 
-function Thumbnail({ entry, size }: { entry: FileEntry; size: number }) {
+import type { IconProps } from '@aster-ui/icons'
+
+const iconSizeMap: Record<string, number> = { xs: 12, sm: 16, md: 20, lg: 24, xl: 28 }
+
+function Thumbnail({ entry, size }: { entry: FileEntry; size: IconProps['size'] }) {
   const [src, setSrc] = useState<string | null>(null)
+  const px = iconSizeMap[size as string] ?? 28
 
   useEffect(() => {
     if (!thumbImageExts.has(entry.extension.toLowerCase())) return
@@ -39,17 +44,17 @@ function Thumbnail({ entry, size }: { entry: FileEntry; size: number }) {
 
   if (!src) {
     const Icon = getFileIcon(entry.extension, entry.isDirectory)
-    return <Icon size={size === 64 ? 'xl' : 'sm'} className="text-base-content" />
+    return <Icon size={size} className="text-base-content" />
   }
 
   return (
     <img
       src={src}
       style={{
-        width: size,
-        height: size,
+        width: px,
+        height: px,
         objectFit: 'cover',
-        borderRadius: 4,
+        borderRadius: 2,
       }}
     />
   )
@@ -669,7 +674,7 @@ export default function FilePanel({ panel, focused, onFocus, onDrop, onFileClick
               }}
             >
               {!entry.isDirectory && thumbImageExts.has(entry.extension.toLowerCase()) ? (
-                <Thumbnail entry={entry} size={20} />
+                <Thumbnail entry={entry} size="sm" />
               ) : (
                 <Icon size="sm" className={entry.isDirectory ? 'text-warning' : 'text-base-content'} />
               )}
@@ -718,7 +723,7 @@ export default function FilePanel({ panel, focused, onFocus, onDrop, onFileClick
             }}
           >
             {!entry.isDirectory && thumbImageExts.has(entry.extension.toLowerCase()) ? (
-              <Thumbnail entry={entry} size={64} />
+              <Thumbnail entry={entry} size="xl" />
             ) : (
               <Icon
                 size="xl"
