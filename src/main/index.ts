@@ -101,7 +101,9 @@ ipcMain.handle('get-home', () => {
 })
 
 ipcMain.handle('get-cwd', () => {
-  return process.cwd()
+  const cwd = process.cwd()
+  // When launched from Finder, cwd is /
+  return cwd === '/' ? app.getPath('home') : cwd
 })
 
 ipcMain.handle('read-directory', async (_event, dirPath: string) => {
