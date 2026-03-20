@@ -343,6 +343,10 @@ ipcMain.handle('pty-kill', () => {
 
 app.whenReady().then(createWindow)
 
+app.on('will-quit', () => {
+  globalShortcut.unregisterAll()
+})
+
 app.on('window-all-closed', () => {
   if (process.platform !== 'darwin') app.quit()
 })
