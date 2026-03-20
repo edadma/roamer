@@ -1,4 +1,4 @@
-import { app, BrowserWindow, ipcMain, shell, globalShortcut } from 'electron'
+import { app, BrowserWindow, ipcMain, shell, Menu } from 'electron'
 import path from 'path'
 import fs from 'fs/promises'
 import { watch, readFileSync, type FSWatcher } from 'fs'
@@ -53,18 +53,40 @@ function createWindow() {
 
   win.once('ready-to-show', () => win.show())
 
-  // Forward Escape key to renderer — Electron/Chromium swallows it on macOS
-  // Only register when Roamer is focused, unregister when it loses focus
-  win.on('focus', () => {
-    if (!globalShortcut.isRegistered('Escape')) {
-      globalShortcut.register('Escape', () => {
-        win.webContents.send('escape-pressed')
-      })
-    }
-  })
-  win.on('blur', () => {
-    globalShortcut.unregister('Escape')
-  })
+  // Forward Escape key to renderer via hidden menu accelerator
+  // This is app-scoped (not global) so it doesn't leak to other apps
+  const menu = Menu.buildFromTemplate([
+    {
+      label: app.name,
+      submenu: [
+        { role: 'quit' },
+      ],
+    },
+    {
+      label: 'Edit',
+      submenu: [
+        { role: 'undo' },
+        { role: 'redo' },
+        { type: 'separator' },
+        { role: 'cut' },
+        { role: 'copy' },
+        { role: 'paste' },
+        { role: 'selectAll' },
+      ],
+    },
+    {
+      label: '',
+      submenu: [
+        {
+          label: 'Escape',
+          accelerator: 'Escape',
+          visible: false,
+          click: () => win.webContents.send('escape-pressed'),
+        },
+      ],
+    },
+  ])
+  Menu.setApplicationMenu(menu)
 
   if (process.env.NODE_ENV === 'development') {
     win.loadURL('http://localhost:5173')
@@ -342,10 +364,6 @@ ipcMain.handle('pty-kill', () => {
 })
 
 app.whenReady().then(createWindow)
-
-app.on('will-quit', () => {
-  globalShortcut.unregisterAll()
-})
 
 app.on('window-all-closed', () => {
   if (process.platform !== 'darwin') app.quit()
