@@ -8,6 +8,12 @@ A cross-platform file explorer inspired by Dolphin, with an integrated terminal 
 brew install --cask edadma/tap/roamer
 ```
 
+To update to the latest version:
+
+```bash
+brew update && brew upgrade --cask roamer
+```
+
 > **Note:** Roamer is not yet code-signed. On first launch, right-click the app and select "Open" to bypass Gatekeeper.
 
 ## Features
