@@ -7,7 +7,7 @@ import { ArrowLeftIcon, ArrowRightIcon, ArrowUpIcon, PencilSquareIcon, HomeIcon,
 import Splitter from './Splitter'
 import FilePanel, { useFilePanel, type FilePanelState } from './FilePanel'
 import InfoPanel from './InfoPanel'
-import { initDb, getPlaces, addPlace, type Place } from './db'
+import type { Place } from './db'
 import type { FileEntry } from './types'
 
 const { Text } = Typography
@@ -23,6 +23,9 @@ declare global {
   interface Window {
     roamer: {
       platform: string
+      dbInit: () => Promise<void>
+      dbGetPlaces: () => Promise<Place[]>
+      dbAddPlace: (name: string, path: string) => Promise<void>
       readDirectory: (path: string) => Promise<FileEntry[]>
       getHome: () => Promise<string>
       getCwd: () => Promise<string>
@@ -187,11 +190,11 @@ export default function App() {
   const xtermRef = useRef<XTerm | null>(null)
 
   useEffect(() => {
-    initDb().then(async () => {
+    window.roamer.dbInit().then(async () => {
       setDbReady(true)
       try {
-        const rows = await getPlaces()
-        setPlacesList(rows.sort((a, b) => a.sortOrder - b.sortOrder))
+        const rows = await window.roamer.dbGetPlaces()
+        setPlacesList(rows.sort((a: Place, b: Place) => a.sortOrder - b.sortOrder))
       } catch (e) {
         console.error('Failed to load places:', e)
       }
@@ -434,10 +437,10 @@ export default function App() {
   }, [active, leftPanel, rightPanel])
 
   // Add to places
-  const handleAddPlace = useCallback(async (name: string, path: string) => {
-    await addPlace(name, path)
-    const rows = await getPlaces()
-    setPlacesList(rows.sort((a, b) => a.sortOrder - b.sortOrder))
+  const handleAddPlace = useCallback(async (name: string, placePath: string) => {
+    await window.roamer.dbAddPlace(name, placePath)
+    const rows = await window.roamer.dbGetPlaces()
+    setPlacesList(rows.sort((a: Place, b: Place) => a.sortOrder - b.sortOrder))
   }, [])
 
   // Spawn PTY once we have a path

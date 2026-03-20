@@ -1,9 +1,11 @@
 import { app, BrowserWindow, ipcMain, shell, Menu } from 'electron'
 import path from 'path'
 import fs from 'fs/promises'
-import { watch, readFileSync, type FSWatcher } from 'fs'
+import { watch, readFileSync, mkdirSync, type FSWatcher } from 'fs'
 import { execSync } from 'child_process'
 import * as pty from 'node-pty'
+import { Session } from '@petradb/engine'
+import { quarry, table, serial, text, integer, boolean } from '@petradb/quarry'
 
 // Cache uid/gid to name lookups
 const uidCache = new Map<number, string>()
@@ -38,6 +40,54 @@ loadGroupMap()
 function getGroupName(gid: number): string {
   return gidCache.get(gid) ?? String(gid)
 }
+
+// Database — memory in dev, file-backed in production
+const isDev = process.env.NODE_ENV === 'development'
+const dbDir = path.join(app.getPath('userData'), 'db')
+if (!isDev) try { mkdirSync(dbDir, { recursive: true }) } catch {}
+const session = isDev
+  ? new Session({ storage: 'memory' })
+  : new Session({ storage: 'file', path: path.join(dbDir, 'roamer.db') })
+const db = quarry(session)
+
+const places = table('places', {
+  id: serial('id').primaryKey(),
+  name: text('name').notNull(),
+  path: text('path').notNull().unique(),
+  icon: text('icon'),
+  sortOrder: integer('sort_order').notNull().default(0),
+  isDefault: boolean('is_default').notNull().default(false),
+})
+
+async function initDb() {
+  try {
+    await db.createTable(places)
+    // Seed defaults
+    const home = app.getPath('home')
+    await db.insert(places).values(
+      { name: 'Home', path: home, icon: 'home', sortOrder: 0, isDefault: true },
+      { name: 'Desktop', path: `${home}/Desktop`, icon: 'desktop', sortOrder: 1, isDefault: true },
+      { name: 'Documents', path: `${home}/Documents`, icon: 'documents', sortOrder: 2, isDefault: true },
+      { name: 'Downloads', path: `${home}/Downloads`, icon: 'downloads', sortOrder: 3, isDefault: true },
+    ).execute()
+  } catch {
+    // Table already exists
+  }
+}
+
+ipcMain.handle('db-init', () => initDb())
+
+ipcMain.handle('db-get-places', async () => {
+  return db.select(places).execute()
+})
+
+ipcMain.handle('db-add-place', async (_event, name: string, placePath: string) => {
+  const existing = await db.select(places).execute()
+  const maxOrder = existing.reduce((max: number, p: any) => Math.max(max, p.sortOrder), -1)
+  await db.insert(places).values(
+    { name, path: placePath, icon: 'folder', sortOrder: maxOrder + 1, isDefault: false },
+  ).execute()
+})
 
 function createWindow() {
   const win = new BrowserWindow({

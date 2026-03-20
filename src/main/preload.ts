@@ -2,6 +2,9 @@ import { contextBridge, ipcRenderer } from 'electron'
 
 contextBridge.exposeInMainWorld('roamer', {
   platform: process.platform,
+  dbInit: () => ipcRenderer.invoke('db-init'),
+  dbGetPlaces: () => ipcRenderer.invoke('db-get-places'),
+  dbAddPlace: (name: string, path: string) => ipcRenderer.invoke('db-add-place', name, path),
   readDirectory: (dirPath: string) => ipcRenderer.invoke('read-directory', dirPath),
   getHome: () => ipcRenderer.invoke('get-home'),
   getCwd: () => ipcRenderer.invoke('get-cwd'),
