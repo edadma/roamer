@@ -23,6 +23,7 @@ brew install --cask edadma/tap/roamer
 - **Create** — Cmd+N (new file), Cmd+Shift+N (new folder), or right-click → New File/Folder
 - **Open files** — double-click opens in default app
 - **Selection** — click, Cmd+click (toggle), Shift+click (range), Cmd+A (select all), rubber band drag
+- **Git status indicators** — files color-coded by status (modified, staged, untracked, deleted, renamed)
 - **Hidden files toggle** in the status bar
 - **Live directory watching** — panels auto-refresh when files change on disk
 
@@ -45,7 +46,7 @@ brew install --cask edadma/tap/roamer
 ### Layout
 - **Resizable splitters** between sidebar, file panels, terminal, and info panel
 - **Active panel indicator** — blue outline shows which panel has focus
-- **Status bar** — item count, selection count, hidden files toggle
+- **Status bar** — git branch name, item count, selection count, hidden files toggle
 - **Error auto-dismiss** — errors clear after 5 seconds
 
 ## Development

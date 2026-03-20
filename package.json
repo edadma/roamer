@@ -1,6 +1,6 @@
 {
   "name": "roamer",
-  "version": "0.0.6",
+  "version": "0.0.7",
   "description": "A cross-platform file explorer with an integrated terminal",
   "main": "dist/main/index.js",
   "scripts": {
