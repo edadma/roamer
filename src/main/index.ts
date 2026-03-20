@@ -54,9 +54,16 @@ function createWindow() {
   win.once('ready-to-show', () => win.show())
 
   // Forward Escape key to renderer — Electron/Chromium swallows it on macOS
-  globalShortcut.register('Escape', () => {
-    const focused = BrowserWindow.getFocusedWindow()
-    if (focused) focused.webContents.send('escape-pressed')
+  // Only register when Roamer is focused, unregister when it loses focus
+  win.on('focus', () => {
+    if (!globalShortcut.isRegistered('Escape')) {
+      globalShortcut.register('Escape', () => {
+        win.webContents.send('escape-pressed')
+      })
+    }
+  })
+  win.on('blur', () => {
+    globalShortcut.unregister('Escape')
   })
 
   if (process.env.NODE_ENV === 'development') {
