@@ -19,7 +19,9 @@ brew update && brew upgrade --cask roamer
 ## Features
 
 ### File Management
-- **Grid and list views** — toggle between icon grid and detailed list (name, size, permissions, owner, modified date)
+- **Grid and list views** — toggle between icon grid and detailed list (name, size, ls-style permissions, owner, modified date)
+- **Image thumbnails** — cached in PetraDB for instant loading (JPEG, PNG, GIF, WebP, BMP)
+- **Symlink support** — shows link target (`→ target`) and `l` prefix in permissions
 - **Dual panel** split view for side-by-side file browsing
 - **Drag & drop** between panels — default is move, hold Cmd/Alt to copy
 - **Copy/Cut/Paste** — Cmd+C, Cmd+X, Cmd+V (cut files appear dimmed until pasted)
@@ -29,13 +31,14 @@ brew update && brew upgrade --cask roamer
 - **Create** — Cmd+N (new file), Cmd+Shift+N (new folder), or right-click → New File/Folder
 - **Open files** — double-click opens in default app; executables run in the terminal
 - **Run executables** — double-click or right-click → Run in Terminal
+- **Copy Path** — right-click → Copy Path to clipboard
 - **Selection** — click, Cmd+click (toggle), Shift+click (range), Cmd+A (select all), rubber band drag
 - **Git status indicators** — files color-coded by status (modified, staged, untracked, deleted, renamed)
 - **Hidden files toggle** in the status bar
 - **Live directory watching** — panels auto-refresh when files change on disk
 
 ### Info Panel
-- **Click a file** to show details panel on the right — image preview, text preview (first 4KB), file size, dates, permissions, owner
+- **Click a file** to show details panel on the right — image preview, text preview (first 4KB), file size, dates, ls-style permissions, owner, symlink target
 - **Resizable** via splitter, dismiss with X or click empty space
 
 ### Navigation
