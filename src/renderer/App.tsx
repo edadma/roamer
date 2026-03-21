@@ -1,5 +1,5 @@
 import { useEffect, useState, useCallback, useRef } from 'react'
-import { Typography, Button, ThemeController, Splitter, Breadcrumb, Menu } from 'asterui'
+import { Typography, Button, ThemeController, Splitter, Breadcrumb, Menu, notification, Checkbox } from 'asterui'
 import { Terminal as XTerm } from '@xterm/xterm'
 import { FitAddon } from '@xterm/addon-fit'
 import '@xterm/xterm/css/xterm.css'
@@ -268,11 +268,16 @@ export default function App() {
     document.title = `Roamer — ${home}`
   }, [active.currentPath])
 
-  // Auto-dismiss errors after 5 seconds
+  // Show error notification
   useEffect(() => {
     if (!active.error) return
-    const timer = setTimeout(() => active.setError(null), 5000)
-    return () => clearTimeout(timer)
+    notification.error({
+      message: 'Error',
+      description: active.error,
+      duration: 5,
+      placement: 'bottomRight',
+    })
+    active.setError(null)
   }, [active.error])
 
   // Escape key — Electron/Chromium swallows it on macOS, so we get it via IPC
@@ -521,23 +526,6 @@ export default function App() {
         <ThemeController.Swap className="ml-auto scale-50" />
       </div>
 
-      {/* Error bar */}
-      {active.error && (
-        <div
-          className="flex items-center gap-2 px-3 py-2 text-sm shrink-0"
-          style={{ backgroundColor: 'oklch(0.64 0.21 25)', color: '#fff' }}
-        >
-          <span className="flex-1">{active.error}</span>
-          <button
-            className="btn btn-ghost btn-xs"
-            style={{ color: '#fff' }}
-            onClick={() => active.setError(null)}
-          >
-            Dismiss
-          </button>
-        </div>
-      )}
-
       {/* Main content: sidebar + file grids + terminal */}
       <Splitter defaultSizes={[15, 85]} minSize={120} className="flex-1 min-h-0">
         {/* Places panel */}
@@ -652,15 +640,14 @@ export default function App() {
           {!active.showHidden && active.entries.length !== active.visibleEntries.length &&
             ` (${active.entries.length - active.visibleEntries.length} hidden)`}
         </Text>
-        <label className="ml-auto flex items-center gap-1 cursor-pointer">
-          <input
-            type="checkbox"
-            className="checkbox checkbox-xs"
-            checked={active.showHidden}
-            onChange={(e) => active.setShowHidden(e.target.checked)}
-          />
+        <Checkbox
+          size="xs"
+          checked={active.showHidden}
+          onChange={(e) => active.setShowHidden(e.target.checked)}
+          className="ml-auto"
+        >
           <Text size="xs" type="secondary">Show hidden</Text>
-        </label>
+        </Checkbox>
       </div>
     </div>
   )

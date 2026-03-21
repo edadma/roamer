@@ -653,8 +653,8 @@ export default function FilePanel({ panel, focused, onFocus, onDrop, onFileClick
   }
 
   const outlineStyle = {
-    outline: focused ? '2px solid oklch(0.65 0.2 250)' : '2px solid transparent',
-    outlineOffset: '-2px',
+    outline: focused ? '1px solid var(--color-base-content)' : '1px solid transparent',
+    outlineOffset: '-1px',
   }
 
   return (
