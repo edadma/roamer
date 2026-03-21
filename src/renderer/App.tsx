@@ -1,10 +1,9 @@
 import { useEffect, useState, useCallback, useRef } from 'react'
-import { Typography, Button, ThemeController } from 'asterui'
+import { Typography, Button, ThemeController, Splitter } from 'asterui'
 import { Terminal as XTerm } from '@xterm/xterm'
 import { FitAddon } from '@xterm/addon-fit'
 import '@xterm/xterm/css/xterm.css'
 import { ArrowLeftIcon, ArrowRightIcon, ArrowUpIcon, PencilSquareIcon, HomeIcon, ComputerDesktopIcon, DocumentIcon, ArrowDownTrayIcon, FolderIcon, ViewColumnsIcon, ListBulletIcon, Squares2X2Icon } from '@aster-ui/icons'
-import Splitter from './Splitter'
 import FilePanel, { useFilePanel, type FilePanelState } from './FilePanel'
 import InfoPanel from './InfoPanel'
 import type { Place } from './db'
@@ -535,8 +534,9 @@ export default function App() {
       )}
 
       {/* Main content: sidebar + file grids + terminal */}
-      <Splitter direction="horizontal" defaultSize={180} minSize={120} className="flex-1 min-h-0">
+      <Splitter defaultSizes={[15, 85]} minSize={120} className="flex-1 min-h-0">
         {/* Places panel */}
+        <Splitter.Panel minSize={120}>
         <div className="h-full overflow-auto border-r border-base-300">
           <div className="px-2 py-2">
             <Text size="xs" type="secondary" style={{ fontWeight: 600, textTransform: 'uppercase', letterSpacing: '0.05em', padding: '4px 8px' }}>
@@ -562,36 +562,55 @@ export default function App() {
           </ul>
         </div>
 
+        </Splitter.Panel>
         {/* File grid(s) + info panel + terminal */}
-        <Splitter direction="vertical" defaultSize={200} minSize={80}>
+        <Splitter.Panel>
+        <Splitter direction="vertical" defaultSizes={[70, 30]} minSize={80}>
           {/* File grids + info panel */}
+          <Splitter.Panel minSize={80}>
           {inspectedFile ? (
-            <Splitter direction="horizontal" defaultSize={280} minSize={200} reverse>
+            <Splitter defaultSizes={[70, 30]} minSize={200}>
               {/* File grids */}
+              <Splitter.Panel minSize={200}>
               <div style={{ height: '100%' }}>
                 {splitView ? (
-                  <Splitter direction="horizontal" defaultRatio={0.5} minSize={200}>
+                  <Splitter defaultSizes={[50, 50]} minSize={200}>
+                    <Splitter.Panel minSize={200}>
                     <FilePanel panel={leftPanel} focused={activePanel === 'left'} onFocus={() => setActivePanel('left')} onDrop={handleFileDrop} onFileClick={setInspectedFile} onAddPlace={handleAddPlace} cutPaths={cutPathsSet} />
+                    </Splitter.Panel>
+                    <Splitter.Panel minSize={200}>
                     <FilePanel panel={rightPanel} focused={activePanel === 'right'} onFocus={() => setActivePanel('right')} onDrop={handleFileDrop} onFileClick={setInspectedFile} onAddPlace={handleAddPlace} cutPaths={cutPathsSet} />
+                    </Splitter.Panel>
                   </Splitter>
                 ) : (
                   <FilePanel panel={leftPanel} focused={true} onFocus={() => setActivePanel('left')} onDrop={handleFileDrop} onFileClick={setInspectedFile} onAddPlace={handleAddPlace} cutPaths={cutPathsSet} />
                 )}
               </div>
+              </Splitter.Panel>
               {/* Info panel */}
+              <Splitter.Panel minSize={200}>
               <InfoPanel entry={inspectedFile} onDismiss={() => setInspectedFile(null)} />
+              </Splitter.Panel>
             </Splitter>
           ) : splitView ? (
-            <Splitter direction="horizontal" defaultRatio={0.5} minSize={200}>
+            <Splitter defaultSizes={[50, 50]} minSize={200}>
+              <Splitter.Panel minSize={200}>
               <FilePanel panel={leftPanel} focused={activePanel === 'left'} onFocus={() => setActivePanel('left')} onDrop={handleFileDrop} onFileClick={setInspectedFile} onAddPlace={handleAddPlace} cutPaths={cutPathsSet} />
+              </Splitter.Panel>
+              <Splitter.Panel minSize={200}>
               <FilePanel panel={rightPanel} focused={activePanel === 'right'} onFocus={() => setActivePanel('right')} onDrop={handleFileDrop} onFileClick={setInspectedFile} onAddPlace={handleAddPlace} cutPaths={cutPathsSet} />
+              </Splitter.Panel>
             </Splitter>
           ) : (
             <FilePanel panel={leftPanel} focused={true} onFocus={() => setActivePanel('left')} onDrop={handleFileDrop} onFileClick={setInspectedFile} onAddPlace={handleAddPlace} cutPaths={cutPathsSet} />
           )}
+          </Splitter.Panel>
           {/* Terminal panel */}
+          <Splitter.Panel minSize={80}>
           <div ref={termContainerCallback} className="h-full" />
+          </Splitter.Panel>
         </Splitter>
+        </Splitter.Panel>
       </Splitter>
 
       {/* Status bar */}
