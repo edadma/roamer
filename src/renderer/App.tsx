@@ -1,5 +1,5 @@
 import { useEffect, useState, useCallback, useRef } from 'react'
-import { Typography, Button, ThemeController, Splitter } from 'asterui'
+import { Typography, Button, ThemeController, Splitter, Breadcrumb } from 'asterui'
 import { Terminal as XTerm } from '@xterm/xterm'
 import { FitAddon } from '@xterm/addon-fit'
 import '@xterm/xterm/css/xterm.css'
@@ -118,18 +118,13 @@ function PathBar({
   ]
 
   return (
-    <div className="flex items-center flex-1 gap-1 min-w-0">
-      <nav className="breadcrumbs text-sm" onDoubleClick={startEditing}>
-        <ul>
-          {breadcrumbItems.map((item, i) => (
-            <li key={i}>
-              <a onClick={() => onNavigate(item.path)} className="cursor-pointer">
-                {item.title}
-              </a>
-            </li>
-          ))}
-        </ul>
-      </nav>
+    <div className="flex items-center flex-1 gap-1 min-w-0" onDoubleClick={startEditing}>
+      <Breadcrumb
+        items={breadcrumbItems.map((item) => ({
+          title: item.title,
+          onClick: () => onNavigate(item.path),
+        }))}
+      />
       <Button
         variant="ghost"
         size="sm"
