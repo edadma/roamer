@@ -634,7 +634,33 @@ export default function App() {
               rawTermRef.current = term
               tryFocusTerminal()
             }}
-            options={{ fontSize: 13, cursorBlink: true }}
+            options={{
+              fontSize: 13,
+              cursorBlink: true,
+              theme: {
+                background: '#1d232a',
+                foreground: '#a6adbb',
+                cursor: '#a6adbb',
+                cursorAccent: '#1d232a',
+                selectionBackground: '#6366f140',
+                black: '#000000',
+                red: '#f87272',
+                green: '#36d399',
+                yellow: '#fbbd23',
+                blue: '#3abff8',
+                magenta: '#f000b8',
+                cyan: '#37cdbe',
+                white: '#d3d7cf',
+                brightBlack: '#555753',
+                brightRed: '#f87272',
+                brightGreen: '#36d399',
+                brightYellow: '#fbbd23',
+                brightBlue: '#3abff8',
+                brightMagenta: '#f000b8',
+                brightCyan: '#37cdbe',
+                brightWhite: '#eeeeec',
+              },
+            }}
           />
           </Splitter.Panel>
         </Splitter>
