@@ -5,7 +5,7 @@ import { watch, readFileSync, mkdirSync, type FSWatcher } from 'fs'
 import { execSync } from 'child_process'
 import * as pty from 'node-pty'
 import { Session } from '@petradb/engine'
-import { quarry, table, serial, text, integer, boolean } from '@petradb/quarry'
+import { quarry, table, serial, text, integer, boolean, eq } from '@petradb/quarry'
 
 // Cache uid/gid to name lookups
 const uidCache = new Map<number, string>()
@@ -112,15 +112,19 @@ async function initDb() {
 ipcMain.handle('db-init', () => initDb())
 
 ipcMain.handle('db-get-places', async () => {
-  return db.select(places).execute()
+  return db.from(places).execute()
 })
 
 ipcMain.handle('db-add-place', async (_event, name: string, placePath: string) => {
-  const existing = await db.select(places).execute()
+  const existing = await db.from(places).execute()
   const maxOrder = existing.reduce((max: number, p: any) => Math.max(max, p.sortOrder), -1)
   await db.insert(places).values(
     { name, path: placePath, icon: 'folder', sortOrder: maxOrder + 1, isDefault: false },
   ).execute()
+})
+
+ipcMain.handle('db-delete-place', async (_event, placePath: string) => {
+  await db.delete(places).where(eq(places.path, placePath)).execute()
 })
 
 function createWindow() {
@@ -264,7 +268,7 @@ ipcMain.handle('get-thumbnail', async (_event, filePath: string, mtime: string) 
 
   const work = (async () => {
     // Check cache
-    const cached = await db.select(thumbnails).execute()
+    const cached = await db.from(thumbnails).execute()
     const match = cached.find((t: any) => t.path === filePath)
     if (match && match.mtime === mtime) {
       return match.data as string // already a data URL

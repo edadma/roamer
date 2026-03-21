@@ -1,9 +1,10 @@
 import { useEffect, useState, useCallback, useRef } from 'react'
-import { Typography, Button, ThemeController, Splitter, Breadcrumb } from 'asterui'
+import { Typography, Button, ThemeController, Splitter, Breadcrumb, Menu } from 'asterui'
 import { Terminal as XTerm } from '@xterm/xterm'
 import { FitAddon } from '@xterm/addon-fit'
 import '@xterm/xterm/css/xterm.css'
 import { ArrowLeftIcon, ArrowRightIcon, ArrowUpIcon, PencilSquareIcon, HomeIcon, ComputerDesktopIcon, DocumentIcon, ArrowDownTrayIcon, FolderIcon, ViewColumnsIcon, ListBulletIcon, Squares2X2Icon } from '@aster-ui/icons'
+import ContextMenu, { type ContextMenuItem } from './ContextMenu'
 import FilePanel, { useFilePanel, type FilePanelState } from './FilePanel'
 import InfoPanel from './InfoPanel'
 import type { Place } from './db'
@@ -25,6 +26,7 @@ declare global {
       dbInit: () => Promise<void>
       dbGetPlaces: () => Promise<Place[]>
       dbAddPlace: (name: string, path: string) => Promise<void>
+      dbDeletePlace: (path: string) => Promise<void>
       readDirectory: (path: string) => Promise<FileEntry[]>
       getHome: () => Promise<string>
       getCwd: () => Promise<string>
@@ -144,6 +146,7 @@ export default function App() {
   const [activePanel, setActivePanel] = useState<'left' | 'right'>('left')
   const [inspectedFile, setInspectedFile] = useState<FileEntry | null>(null)
 
+  const placesContextRef = useRef<string | null>(null)
   const leftPanel = useFilePanel(cwd)
   const rightPanel = useFilePanel(cwd)
   const active = activePanel === 'left' ? leftPanel : rightPanel
@@ -439,6 +442,13 @@ export default function App() {
     setPlacesList(rows.sort((a: Place, b: Place) => a.sortOrder - b.sortOrder))
   }, [])
 
+  // Delete place
+  const handleDeletePlace = useCallback(async (placePath: string) => {
+    await window.roamer.dbDeletePlace(placePath)
+    const rows = await window.roamer.dbGetPlaces()
+    setPlacesList(rows.sort((a: Place, b: Place) => a.sortOrder - b.sortOrder))
+  }, [])
+
   // Spawn PTY once we have a path
   const ptySpawned = useRef(false)
   useEffect(() => {
@@ -532,30 +542,51 @@ export default function App() {
       <Splitter defaultSizes={[15, 85]} minSize={120} className="flex-1 min-h-0">
         {/* Places panel */}
         <Splitter.Panel minSize={120}>
-        <div className="h-full overflow-auto border-r border-base-300">
+        <ContextMenu
+          items={(e) => {
+            const target = (e.target as HTMLElement).closest('[data-place-path]')
+            const placePath = target?.getAttribute('data-place-path')
+            const place = placePath ? placesList.find((p) => p.path === placePath) : undefined
+            if (place && !place.isDefault) {
+              return [{ key: 'remove', label: 'Remove from Places', danger: true }]
+            }
+            return []
+          }}
+          onSelect={(key) => {
+            if (key === 'remove') {
+              const path = placesContextRef.current
+              if (path) handleDeletePlace(path)
+            }
+          }}
+        >
+        <div className="h-full overflow-auto border-r border-base-300" onContextMenu={(e) => {
+          const target = (e.target as HTMLElement).closest('[data-place-path]')
+          placesContextRef.current = target?.getAttribute('data-place-path') ?? null
+        }}>
           <div className="px-2 py-2">
             <Text size="xs" type="secondary" style={{ fontWeight: 600, textTransform: 'uppercase', letterSpacing: '0.05em', padding: '4px 8px' }}>
               Places
             </Text>
           </div>
-          <ul className="menu menu-sm px-1 py-0">
+          <Menu
+            size="sm"
+            selectedKeys={[active.currentPath]}
+            onSelect={(key) => active.navigate(key)}
+            className="px-1 py-0"
+          >
             {placesList.map((place) => {
               const PlaceIcon = placeIconMap[place.icon ?? ''] ?? FolderIcon
-              const isActive = active.currentPath === place.path
               return (
-                <li key={place.id}>
-                  <a
-                    className={isActive ? 'active' : ''}
-                    onClick={() => active.navigate(place.path)}
-                  >
-                    <PlaceIcon size="sm" />
+                <div key={place.path} data-place-path={place.path}>
+                  <Menu.Item key={place.path} icon={<PlaceIcon size="sm" />}>
                     {place.name}
-                  </a>
-                </li>
+                  </Menu.Item>
+                </div>
               )
             })}
-          </ul>
+          </Menu>
         </div>
+        </ContextMenu>
 
         </Splitter.Panel>
         {/* File grid(s) + info panel + terminal */}

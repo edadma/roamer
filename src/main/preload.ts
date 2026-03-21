@@ -5,6 +5,7 @@ contextBridge.exposeInMainWorld('roamer', {
   dbInit: () => ipcRenderer.invoke('db-init'),
   dbGetPlaces: () => ipcRenderer.invoke('db-get-places'),
   dbAddPlace: (name: string, path: string) => ipcRenderer.invoke('db-add-place', name, path),
+  dbDeletePlace: (path: string) => ipcRenderer.invoke('db-delete-place', path),
   readDirectory: (dirPath: string) => ipcRenderer.invoke('read-directory', dirPath),
   getHome: () => ipcRenderer.invoke('get-home'),
   getCwd: () => ipcRenderer.invoke('get-cwd'),
