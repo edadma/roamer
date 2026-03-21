@@ -637,7 +637,7 @@ export default function App() {
             options={{
               fontSize: 13,
               cursorBlink: true,
-              theme: {
+              theme: isDark ? {
                 background: '#1d232a',
                 foreground: '#a6adbb',
                 cursor: '#a6adbb',
@@ -658,6 +658,28 @@ export default function App() {
                 brightBlue: '#3abff8',
                 brightMagenta: '#f000b8',
                 brightCyan: '#37cdbe',
+                brightWhite: '#eeeeec',
+              } : {
+                background: '#ffffff',
+                foreground: '#1f2937',
+                cursor: '#1f2937',
+                cursorAccent: '#ffffff',
+                selectionBackground: '#6366f140',
+                black: '#2e3436',
+                red: '#cc0000',
+                green: '#4e9a06',
+                yellow: '#c4a000',
+                blue: '#3465a4',
+                magenta: '#75507b',
+                cyan: '#06989a',
+                white: '#d3d7cf',
+                brightBlack: '#555753',
+                brightRed: '#ef2929',
+                brightGreen: '#8ae234',
+                brightYellow: '#fce94f',
+                brightBlue: '#729fcf',
+                brightMagenta: '#ad7fa8',
+                brightCyan: '#34e2e2',
                 brightWhite: '#eeeeec',
               },
             }}
