@@ -354,7 +354,7 @@ export default function App() {
         active.startNewItem('file')
       } else if (key === 'z' && !e.shiftKey) {
         e.preventDefault()
-        e.stopPropagation()
+        e.stopImmediatePropagation()
         setUndoStack((stack) => {
           if (stack.length === 0) return stack
           const entry = stack[stack.length - 1]
