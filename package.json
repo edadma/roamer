@@ -40,7 +40,7 @@
     "@petradb/quarry": "^1.5.2",
     "@xterm/addon-fit": "^0.10.0",
     "@xterm/xterm": "^5.5.0",
-    "asterui": "^0.12.86",
+    "asterui": "^0.12.87",
     "node-pty": "^1.1.0",
     "react": "^19.2.4",
     "react-dom": "^19.2.4"

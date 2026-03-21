@@ -218,19 +218,21 @@ export default function App() {
     })
   }, [])
 
-  // Keep terminal focused after UI interactions
+  // Keep terminal focused — refocus after any interaction that loses focus
   useEffect(() => {
-    const refocus = (e: MouseEvent) => {
-      const tag = (e.target as HTMLElement).tagName
-      if (tag === 'INPUT' || tag === 'TEXTAREA') return
+    const refocus = () => {
       requestAnimationFrame(() => {
-        const active = document.activeElement?.tagName
-        if (active === 'INPUT' || active === 'TEXTAREA') return
+        const tag = document.activeElement?.tagName
+        if (tag === 'INPUT' || tag === 'TEXTAREA') return
         termRef.current?.focus()
       })
     }
     document.addEventListener('mouseup', refocus)
-    return () => document.removeEventListener('mouseup', refocus)
+    document.addEventListener('focusout', refocus)
+    return () => {
+      document.removeEventListener('mouseup', refocus)
+      document.removeEventListener('focusout', refocus)
+    }
   }, [])
 
   // Update window title with current path
@@ -258,6 +260,8 @@ export default function App() {
     return window.roamer.onEscape(() => {
       const target = document.activeElement || document
       target.dispatchEvent(new KeyboardEvent('keydown', { key: 'Escape', bubbles: true, cancelable: true }))
+      // Refocus terminal after escape
+      requestAnimationFrame(() => termRef.current?.focus())
     })
   }, [])
 
