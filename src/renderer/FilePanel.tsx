@@ -1,5 +1,6 @@
 import { useEffect, useState, useCallback, useRef } from 'react'
 import { Typography } from 'asterui'
+import ContextMenu, { type ContextMenuItem } from './ContextMenu'
 import { getFileIcon } from './icons'
 import type { FileEntry } from './types'
 
@@ -531,22 +532,77 @@ export default function FilePanel({ panel, focused, onFocus, onDrop, onFileClick
     }
   }
 
-  // Context menu
-  const [contextMenu, setContextMenu] = useState<{ x: number; y: number; entry?: FileEntry } | null>(null)
-
-  const handleContextMenu = (e: React.MouseEvent, entry?: FileEntry) => {
-    e.preventDefault()
-    e.stopPropagation()
+  // Context menu — build items dynamically based on right-click target
+  const buildContextMenuItems = useCallback((e: React.MouseEvent): ContextMenuItem[] => {
     onFocus()
-    setContextMenu({ x: e.clientX, y: e.clientY, entry })
-  }
+    const target = (e.target as HTMLElement).closest('[data-path]')
+    const path = target?.getAttribute('data-path')
+    const entry = path ? panel.visibleEntries.find((f) => f.path === path) : undefined
 
-  useEffect(() => {
-    if (!contextMenu) return
-    const close = () => setContextMenu(null)
-    window.addEventListener('click', close)
-    return () => window.removeEventListener('click', close)
-  }, [contextMenu])
+    if (entry) {
+      const items: ContextMenuItem[] = []
+      if (!entry.isDirectory) {
+        items.push({ key: 'open', label: 'Open' })
+      }
+      if (!entry.isDirectory && (entry.mode & 0o111) !== 0) {
+        items.push({ key: 'run', label: 'Run in Terminal' })
+      }
+      if (entry.isDirectory && onAddPlace) {
+        items.push({ key: 'add-place', label: 'Add to Places' })
+      }
+      items.push({ key: 'copy-path', label: 'Copy Path' })
+      items.push({ key: 'rename', label: 'Rename' })
+      items.push({ key: 'divider', divider: true })
+      items.push({ key: 'delete', label: 'Delete', danger: true })
+      return items
+    }
+
+    return [
+      { key: 'new-folder', label: 'New Folder' },
+      { key: 'new-file', label: 'New File' },
+    ]
+  }, [panel.visibleEntries, onFocus, onAddPlace])
+
+  const contextMenuEntryRef = useRef<FileEntry | undefined>()
+
+  const handleContextMenuOpen = useCallback((e: React.MouseEvent) => {
+    const target = (e.target as HTMLElement).closest('[data-path]')
+    const path = target?.getAttribute('data-path')
+    contextMenuEntryRef.current = path ? panel.visibleEntries.find((f) => f.path === path) : undefined
+  }, [panel.visibleEntries])
+
+  const handleContextMenuSelect = useCallback((key: string) => {
+    const entry = contextMenuEntryRef.current
+    switch (key) {
+      case 'open':
+        if (entry) window.roamer.openFile(entry.path)
+        break
+      case 'run':
+        if (entry) {
+          const escaped = entry.path.replace(/ /g, '\\ ')
+          window.roamer.ptyWrite(`${escaped}\n`)
+        }
+        break
+      case 'add-place':
+        if (entry && onAddPlace) onAddPlace(entry.name, entry.path)
+        break
+      case 'copy-path':
+        if (entry) navigator.clipboard.writeText(entry.path)
+        break
+      case 'rename':
+        if (entry) panel.startRename(entry.path)
+        break
+      case 'delete':
+        if (entry) window.roamer.trashFiles([entry.path])
+        break
+      case 'new-folder':
+        panel.startNewItem('folder')
+        break
+      case 'new-file':
+        panel.startNewItem('file')
+        break
+    }
+  }, [panel, onAddPlace])
 
   const rbStyle = rubberBand ? {
     position: 'absolute' as const,
@@ -569,7 +625,6 @@ export default function FilePanel({ panel, focused, onFocus, onDrop, onFileClick
     onDrop: (e: React.DragEvent<HTMLElement>) => handleFolderDrop(e, entry),
     onClick: (e: React.MouseEvent) => handleItemClick(e, entry, index),
     onDoubleClick: () => handleDoubleClick(entry),
-    onContextMenu: (e: React.MouseEvent) => handleContextMenu(e, entry),
   })
 
   const renameInput = (entry: FileEntry) => (
@@ -595,7 +650,6 @@ export default function FilePanel({ panel, focused, onFocus, onDrop, onFileClick
     onDragOver: handlePanelDragOver,
     onDragLeave: handlePanelDragLeave,
     onDrop: handlePanelDrop,
-    onContextMenu: (e: React.MouseEvent) => handleContextMenu(e),
   }
 
   const outlineStyle = {
@@ -604,9 +658,14 @@ export default function FilePanel({ panel, focused, onFocus, onDrop, onFileClick
   }
 
   return (
+    <ContextMenu
+      items={buildContextMenuItems}
+      onSelect={handleContextMenuSelect}
+    >
     <div
       {...containerProps}
       className="h-full overflow-auto"
+      onContextMenu={handleContextMenuOpen}
       style={{
         ...outlineStyle,
         position: 'relative',
@@ -784,48 +843,7 @@ export default function FilePanel({ panel, focused, onFocus, onDrop, onFileClick
           </div>
         </div>
       )}
-      {/* Context menu */}
-      {contextMenu && (
-        <ul
-          className="menu menu-sm bg-base-200 rounded-box shadow-lg"
-          style={{
-            position: 'fixed',
-            left: contextMenu.x,
-            top: contextMenu.y,
-            zIndex: 1000,
-            minWidth: 160,
-          }}
-        >
-          {contextMenu.entry ? (
-            <>
-              {!contextMenu.entry.isDirectory && (
-                <li><a onClick={() => { window.roamer.openFile(contextMenu.entry!.path); setContextMenu(null) }}>Open</a></li>
-              )}
-              {!contextMenu.entry.isDirectory && (contextMenu.entry.mode & 0o111) !== 0 && (
-                <li><a onClick={() => {
-                  const escaped = contextMenu.entry!.path.replace(/ /g, '\\ ')
-                  window.roamer.ptyWrite(`${escaped}\n`)
-                  setContextMenu(null)
-                }}>Run in Terminal</a></li>
-              )}
-              {contextMenu.entry.isDirectory && onAddPlace && (
-                <li><a onClick={() => { onAddPlace(contextMenu.entry!.name, contextMenu.entry!.path); setContextMenu(null) }}>Add to Places</a></li>
-              )}
-              <li><a onClick={() => { navigator.clipboard.writeText(contextMenu.entry!.path); setContextMenu(null) }}>Copy Path</a></li>
-              <li><a onClick={() => { panel.startRename(contextMenu.entry!.path); setContextMenu(null) }}>Rename</a></li>
-              <li><a onClick={() => {
-                window.roamer.trashFiles([contextMenu.entry!.path])
-                setContextMenu(null)
-              }}>Delete</a></li>
-            </>
-          ) : (
-            <>
-              <li><a onClick={() => { panel.startNewItem('folder'); setContextMenu(null) }}>New Folder</a></li>
-              <li><a onClick={() => { panel.startNewItem('file'); setContextMenu(null) }}>New File</a></li>
-            </>
-          )}
-        </ul>
-      )}
     </div>
+    </ContextMenu>
   )
 }
