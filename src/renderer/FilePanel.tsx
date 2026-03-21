@@ -564,7 +564,7 @@ export default function FilePanel({ panel, focused, onFocus, onDrop, onFileClick
     ]
   }, [panel.visibleEntries, onFocus, onAddPlace])
 
-  const contextMenuEntryRef = useRef<FileEntry | undefined>()
+  const contextMenuEntryRef = useRef<FileEntry | undefined>(undefined)
 
   const handleContextMenuOpen = useCallback((e: React.MouseEvent) => {
     const target = (e.target as HTMLElement).closest('[data-path]')
