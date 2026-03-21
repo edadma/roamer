@@ -1,5 +1,5 @@
 import { useEffect, useState, useCallback, useRef } from 'react'
-import { Typography } from 'asterui'
+import { Typography, Input } from 'asterui'
 import ContextMenu, { type ContextMenuItem } from './ContextMenu'
 import { getFileIcon } from './icons'
 import type { FileEntry } from './types'
@@ -628,8 +628,9 @@ export default function FilePanel({ panel, focused, onFocus, onDrop, onFileClick
   })
 
   const renameInput = (entry: FileEntry) => (
-    <input
-      className="input input-xs input-bordered"
+    <Input
+      size="xs"
+      bordered
       style={{ width: '100%', fontSize: 11 }}
       defaultValue={entry.name}
       autoFocus
@@ -639,7 +640,7 @@ export default function FilePanel({ panel, focused, onFocus, onDrop, onFileClick
         if (e.key === 'Escape') panel.cancelRename()
         e.stopPropagation()
       }}
-      onBlur={(e) => panel.commitRename(entry.path, e.target.value)}
+      onBlur={(e) => panel.commitRename(entry.path, (e.target as HTMLInputElement).value)}
     />
   )
 
@@ -831,8 +832,10 @@ export default function FilePanel({ panel, focused, onFocus, onDrop, onFileClick
             <Text size="sm" style={{ fontWeight: 600, marginBottom: 12, display: 'block' }}>
               {panel.newItem.type === 'folder' ? 'New Folder' : 'New File'}
             </Text>
-            <input
-              className="input input-sm input-bordered w-full"
+            <Input
+              size="sm"
+              bordered
+              className="w-full"
               placeholder={panel.newItem.type === 'folder' ? 'Folder name' : 'File name'}
               autoFocus
               onKeyDown={(e) => {

@@ -1,5 +1,5 @@
 import { useEffect, useState, useCallback, useRef } from 'react'
-import { Typography, Button, ThemeController, Splitter, Breadcrumb, Menu, notification, Checkbox } from 'asterui'
+import { Typography, Button, Input, ThemeController, Splitter, Breadcrumb, Menu, notification, Checkbox } from 'asterui'
 import { Terminal, type TerminalRef } from 'asterui/terminal'
 import { ArrowLeftIcon, ArrowRightIcon, ArrowUpIcon, PencilSquareIcon, HomeIcon, ComputerDesktopIcon, DocumentIcon, ArrowDownTrayIcon, FolderIcon, ViewColumnsIcon, ListBulletIcon, Squares2X2Icon } from '@aster-ui/icons'
 import ContextMenu, { type ContextMenuItem } from './ContextMenu'
@@ -94,9 +94,11 @@ function PathBar({
 
   if (editing) {
     return (
-      <input
+      <Input
         ref={inputRef}
-        className="input input-sm input-bordered flex-1 font-mono text-sm"
+        size="sm"
+        bordered
+        className="flex-1 font-mono text-sm"
         value={editValue}
         onChange={(e) => setEditValue(e.target.value)}
         onKeyDown={(e) => {
