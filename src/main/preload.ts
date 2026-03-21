@@ -37,6 +37,9 @@ contextBridge.exposeInMainWorld('roamer', {
   ptyWrite: (data: string) => ipcRenderer.send('pty-write', data),
   ptyResize: (cols: number, rows: number) => ipcRenderer.send('pty-resize', cols, rows),
   ptyKill: () => ipcRenderer.invoke('pty-kill'),
+  onWindowShown: (callback: () => void) => {
+    ipcRenderer.once('window-shown', () => callback())
+  },
   onEscape: (callback: () => void) => {
     const listener = () => callback()
     ipcRenderer.on('escape-pressed', listener)

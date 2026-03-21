@@ -139,7 +139,12 @@ function createWindow() {
     },
   })
 
-  win.once('ready-to-show', () => win.show())
+  win.once('ready-to-show', () => {
+    win.show()
+    if (process.env.NODE_ENV !== 'development') {
+      win.webContents.send('window-shown')
+    }
+  })
 
   // Forward Escape key to renderer via hidden menu accelerator
   // This is app-scoped (not global) so it doesn't leak to other apps
@@ -179,6 +184,11 @@ function createWindow() {
   if (process.env.NODE_ENV === 'development') {
     win.loadURL('http://localhost:5173')
     win.webContents.openDevTools()
+    win.webContents.once('devtools-opened', () => {
+      win.focus()
+      win.webContents.focus()
+      win.webContents.send('window-shown')
+    })
   } else {
     win.loadFile(path.join(__dirname, '../renderer/index.html'))
   }

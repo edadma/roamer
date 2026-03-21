@@ -1,8 +1,6 @@
 import { useEffect, useState, useCallback, useRef } from 'react'
 import { Typography, Button, ThemeController, Splitter, Breadcrumb, Menu, notification, Checkbox } from 'asterui'
-import { Terminal as XTerm } from '@xterm/xterm'
-import { FitAddon } from '@xterm/addon-fit'
-import '@xterm/xterm/css/xterm.css'
+import { Terminal, type TerminalRef } from 'asterui/terminal'
 import { ArrowLeftIcon, ArrowRightIcon, ArrowUpIcon, PencilSquareIcon, HomeIcon, ComputerDesktopIcon, DocumentIcon, ArrowDownTrayIcon, FolderIcon, ViewColumnsIcon, ListBulletIcon, Squares2X2Icon } from '@aster-ui/icons'
 import ContextMenu, { type ContextMenuItem } from './ContextMenu'
 import FilePanel, { useFilePanel, type FilePanelState } from './FilePanel'
@@ -49,6 +47,7 @@ declare global {
       ptyWrite: (data: string) => void
       ptyResize: (cols: number, rows: number) => void
       ptyKill: () => Promise<void>
+      onWindowShown: (callback: () => void) => void
       onEscape: (callback: () => void) => () => void
       onPtyData: (callback: (data: string) => void) => () => void
     }
@@ -186,7 +185,8 @@ export default function App() {
 
   const cutPathsSet = clipboard?.mode === 'cut' ? new Set(clipboard.paths) : undefined
 
-  const xtermRef = useRef<XTerm | null>(null)
+  const termRef = useRef<TerminalRef>(null)
+  const ptyCleanupRef = useRef<(() => void) | null>(null)
 
   useEffect(() => {
     window.roamer.dbInit().then(async () => {
@@ -201,60 +201,30 @@ export default function App() {
     window.roamer.getCwd().then((c) => setCwd(c))
   }, [])
 
-  // Initialize xterm when the container mounts
-  const fitAddonRef = useRef<FitAddon | null>(null)
-  const resizeObserverRef = useRef<ResizeObserver | null>(null)
-  const ptyCleanupRef = useRef<(() => void) | null>(null)
-
-  const termContainerCallback = useCallback((node: HTMLDivElement | null) => {
-    if (!node) {
-      resizeObserverRef.current?.disconnect()
-      ptyCleanupRef.current?.()
-      xtermRef.current?.dispose()
-      xtermRef.current = null
-      return
+  // Focus terminal on startup — need both window shown and terminal ready
+  const rawTermRef = useRef<any>(null)
+  const windowShownRef = useRef(false)
+  const tryFocusTerminal = useCallback(() => {
+    if (rawTermRef.current && windowShownRef.current) {
+      rawTermRef.current.focus()
     }
-
-    if (xtermRef.current) return
-
-    const term = new XTerm({
-      fontSize: 13,
-      convertEol: true,
-      cursorBlink: true,
-      theme: {
-        background: '#1d232a',
-        foreground: '#a6adbb',
-      },
+  }, [])
+  useEffect(() => {
+    window.roamer.onWindowShown(() => {
+      windowShownRef.current = true
+      tryFocusTerminal()
     })
-    const fitAddon = new FitAddon()
-    fitAddonRef.current = fitAddon
-    term.loadAddon(fitAddon)
-    term.open(node)
-    requestAnimationFrame(() => { fitAddon.fit(); term.focus() })
-    xtermRef.current = term
-
-    term.onData((data) => window.roamer.ptyWrite(data))
-
-    ptyCleanupRef.current = window.roamer.onPtyData((data) => {
-      term.write(data)
-    })
-
-    const observer = new ResizeObserver(() => fitAddon.fit())
-    observer.observe(node)
-    resizeObserverRef.current = observer
   }, [])
 
   // Keep terminal focused after UI interactions
   useEffect(() => {
     const refocus = (e: MouseEvent) => {
-      // Don't steal focus from inputs (path bar, modals, etc.)
       const tag = (e.target as HTMLElement).tagName
       if (tag === 'INPUT' || tag === 'TEXTAREA') return
-      // Don't steal focus if an input is currently focused
       requestAnimationFrame(() => {
         const active = document.activeElement?.tagName
         if (active === 'INPUT' || active === 'TEXTAREA') return
-        xtermRef.current?.focus()
+        termRef.current?.focus()
       })
     }
     document.addEventListener('mouseup', refocus)
@@ -436,7 +406,7 @@ export default function App() {
       }
       leftPanel.refresh()
       rightPanel.refresh()
-      requestAnimationFrame(() => xtermRef.current?.focus())
+      requestAnimationFrame(() => termRef.current?.focus())
     })
   }, [active, leftPanel, rightPanel])
 
@@ -621,7 +591,19 @@ export default function App() {
           </Splitter.Panel>
           {/* Terminal panel */}
           <Splitter.Panel minSize={80}>
-          <div ref={termContainerCallback} className="h-full" />
+          <Terminal
+            ref={termRef}
+            className="h-full"
+            onData={(data) => window.roamer.ptyWrite(data)}
+            onReady={(term) => {
+              ptyCleanupRef.current = window.roamer.onPtyData((data) => {
+                termRef.current?.write(data)
+              })
+              rawTermRef.current = term
+              tryFocusTerminal()
+            }}
+            options={{ fontSize: 13, cursorBlink: true }}
+          />
           </Splitter.Panel>
         </Splitter>
         </Splitter.Panel>
