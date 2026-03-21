@@ -1,6 +1,6 @@
 {
   "name": "roamer",
-  "version": "0.0.15",
+  "version": "0.0.16",
   "description": "A cross-platform file explorer with an integrated terminal",
   "main": "dist/main/index.js",
   "scripts": {
@@ -40,7 +40,7 @@
     "@petradb/quarry": "^1.5.2",
     "@xterm/addon-fit": "^0.10.0",
     "@xterm/xterm": "^5.5.0",
-    "asterui": "^0.12.87",
+    "asterui": "^0.12.90",
     "node-pty": "^1.1.0",
     "react": "^19.2.4",
     "react-dom": "^19.2.4"
