@@ -144,7 +144,7 @@ export default function App() {
   const [dbReady, setDbReady] = useState(false)
   const [placesList, setPlacesList] = useState<Place[]>([])
   const [splitView, setSplitView] = useState(false)
-  const [isDark, setIsDark] = useState(true)
+  const [isDark, setIsDark] = useState(() => document.documentElement.getAttribute('data-theme') === 'dark')
   const [activePanel, setActivePanel] = useState<'left' | 'right'>('left')
   const [inspectedFile, setInspectedFile] = useState<FileEntry | null>(null)
 
