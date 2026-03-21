@@ -1,7 +1,7 @@
 import { useEffect, useState, useCallback, useRef } from 'react'
-import { Typography, Button, Input, ThemeController, Splitter, Breadcrumb, Menu, notification, Checkbox } from 'asterui'
+import { Typography, Button, Input, Splitter, Breadcrumb, Menu, notification, Checkbox } from 'asterui'
 import { Terminal, type TerminalRef } from 'asterui/terminal'
-import { ArrowLeftIcon, ArrowRightIcon, ArrowUpIcon, PencilSquareIcon, HomeIcon, ComputerDesktopIcon, DocumentIcon, ArrowDownTrayIcon, FolderIcon, ViewColumnsIcon, ListBulletIcon, Squares2X2Icon } from '@aster-ui/icons'
+import { ArrowLeftIcon, ArrowRightIcon, ArrowUpIcon, PencilSquareIcon, HomeIcon, ComputerDesktopIcon, DocumentIcon, ArrowDownTrayIcon, FolderIcon, ViewColumnsIcon, ListBulletIcon, Squares2X2Icon, SunIcon, MoonIcon } from '@aster-ui/icons'
 import ContextMenu, { type ContextMenuItem } from './ContextMenu'
 import FilePanel, { useFilePanel, type FilePanelState } from './FilePanel'
 import InfoPanel from './InfoPanel'
@@ -144,6 +144,7 @@ export default function App() {
   const [dbReady, setDbReady] = useState(false)
   const [placesList, setPlacesList] = useState<Place[]>([])
   const [splitView, setSplitView] = useState(false)
+  const [isDark, setIsDark] = useState(true)
   const [activePanel, setActivePanel] = useState<'left' | 'right'>('left')
   const [inspectedFile, setInspectedFile] = useState<FileEntry | null>(null)
 
@@ -499,7 +500,19 @@ export default function App() {
           className={splitView ? 'btn-active' : ''}
           title="Split view"
         />
-        <ThemeController.Swap className="ml-auto scale-50" />
+        <Button
+          variant="ghost"
+          size="sm"
+          shape="square"
+          className="ml-auto"
+          icon={isDark ? <SunIcon /> : <MoonIcon />}
+          onClick={() => {
+            const next = isDark ? 'light' : 'dark'
+            document.documentElement.setAttribute('data-theme', next)
+            setIsDark(!isDark)
+          }}
+          title="Toggle theme"
+        />
       </div>
 
       {/* Main content: sidebar + file grids + terminal */}
