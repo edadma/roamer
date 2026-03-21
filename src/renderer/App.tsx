@@ -1,5 +1,5 @@
 import { useEffect, useState, useCallback, useRef } from 'react'
-import { Typography, Button } from 'asterui'
+import { Typography, Button, ThemeController } from 'asterui'
 import { Terminal as XTerm } from '@xterm/xterm'
 import { FitAddon } from '@xterm/addon-fit'
 import '@xterm/xterm/css/xterm.css'
@@ -514,6 +514,7 @@ export default function App() {
           className={splitView ? 'btn-active' : ''}
           title="Split view"
         />
+        <ThemeController.Swap className="ml-auto scale-50" />
       </div>
 
       {/* Error bar */}
