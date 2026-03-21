@@ -514,7 +514,7 @@ ipcMain.handle('pty-spawn', (_event, cwd: string) => {
     ptyProcess.kill()
   }
   const shell = process.env.SHELL || '/bin/sh'
-  ptyProcess = pty.spawn(shell, [], {
+  ptyProcess = pty.spawn(shell, ['--login'], {
     name: 'xterm-256color',
     cols: 80,
     rows: 24,
