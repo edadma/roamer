@@ -2,6 +2,7 @@ import { useEffect, useState, useCallback, useRef } from 'react'
 import { Typography, Button, Input, Splitter, Breadcrumb, Menu, notification, Checkbox } from 'asterui'
 import { Terminal, type TerminalRef } from 'asterui/terminal'
 import { ArrowLeftIcon, ArrowRightIcon, ArrowUpIcon, PencilSquareIcon, HomeIcon, ComputerDesktopIcon, DocumentIcon, ArrowDownTrayIcon, FolderIcon, ViewColumnsIcon, ListBulletIcon, Squares2X2Icon, SunIcon, MoonIcon } from '@aster-ui/icons'
+import { useTheme } from './ThemeProvider'
 import ContextMenu, { type ContextMenuItem } from './ContextMenu'
 import FilePanel, { useFilePanel, type FilePanelState } from './FilePanel'
 import InfoPanel from './InfoPanel'
@@ -140,11 +141,11 @@ function PathBar({
 }
 
 export default function App() {
+  const { isDark, toggleTheme } = useTheme()
   const [cwd, setCwd] = useState('')
   const [dbReady, setDbReady] = useState(false)
   const [placesList, setPlacesList] = useState<Place[]>([])
   const [splitView, setSplitView] = useState(false)
-  const [isDark, setIsDark] = useState(() => document.documentElement.getAttribute('data-theme') === 'dark')
   const [activePanel, setActivePanel] = useState<'left' | 'right'>('left')
   const [inspectedFile, setInspectedFile] = useState<FileEntry | null>(null)
 
@@ -506,11 +507,7 @@ export default function App() {
           shape="square"
           className="ml-auto"
           icon={isDark ? <SunIcon /> : <MoonIcon />}
-          onClick={() => {
-            const next = isDark ? 'light' : 'dark'
-            document.documentElement.setAttribute('data-theme', next)
-            setIsDark(!isDark)
-          }}
+          onClick={toggleTheme}
           title="Toggle theme"
         />
       </div>
