@@ -25,7 +25,7 @@ brew update && brew upgrade --cask roamer
 - **Dual panel** split view for side-by-side file browsing
 - **Drag & drop** between panels — default is move, hold Cmd/Alt to copy
 - **Copy/Cut/Paste** — Cmd+C, Cmd+X, Cmd+V (cut files appear dimmed until pasted)
-- **Delete to Trash** — Backspace or Cmd+Backspace (files go to macOS Trash)
+- **Delete to Trash** — Backspace or Cmd+Backspace with confirmation dialog (files go to macOS Trash)
 - **Undo** — Cmd+Z to undo moves, copies, and deletes
 - **Rename** — F2 or right-click → Rename for inline editing
 - **Create** — Cmd+N (new file), Cmd+Shift+N (new folder), or right-click → New File/Folder
