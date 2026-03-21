@@ -1,5 +1,5 @@
 import { useEffect, useState, useCallback, useRef } from 'react'
-import { Typography, Button, Input, Splitter, Breadcrumb, Menu, notification, Checkbox } from 'asterui'
+import { Typography, Button, Input, Splitter, Breadcrumb, Menu, Modal, notification, Checkbox } from 'asterui'
 import { Terminal, type TerminalRef } from 'asterui/terminal'
 import { ArrowLeftIcon, ArrowRightIcon, ArrowUpIcon, PencilSquareIcon, HomeIcon, ComputerDesktopIcon, DocumentIcon, ArrowDownTrayIcon, FolderIcon, ViewColumnsIcon, ListBulletIcon, Squares2X2Icon, SunIcon, MoonIcon } from '@aster-ui/icons'
 import { useTheme } from './ThemeProvider'
@@ -267,6 +267,35 @@ export default function App() {
     })
   }, [])
 
+  // Delete with confirmation
+  const trashWithConfirm = useCallback((paths: string[]) => {
+    const names = paths.map((p) => p.split('/').pop()!)
+    const message = names.length === 1
+      ? `Move "${names[0]}" to Trash?`
+      : `Move ${names.length} items to Trash?`
+    Modal.confirm({
+      title: 'Delete',
+      content: message,
+      okText: 'Move to Trash',
+      type: 'warning',
+      onOk: () => {
+        window.roamer.trashFiles(paths).then((results) => {
+          const ok = results.filter((r) => !r.error)
+          const errors = results.filter((r) => r.error)
+          if (errors.length > 0) {
+            active.setError(`Failed: ${errors.map((e) => e.error).join(', ')}`)
+          }
+          if (ok.length > 0) {
+            setUndoStack((s) => [...s, { type: 'trash', paths: ok.map((r) => r.path) }])
+          }
+          active.setSelected(new Set())
+          leftPanel.refresh()
+          rightPanel.refresh()
+        })
+      },
+    })
+  }, [active, leftPanel, rightPanel])
+
   // File operation keyboard shortcuts (Cmd+C, Cmd+X, Cmd+V, Cmd+Backspace)
   useEffect(() => {
     const handler = (e: KeyboardEvent) => {
@@ -286,20 +315,7 @@ export default function App() {
       if ((e.key === 'Backspace' || e.key === 'Delete') && active.selected.size > 0) {
         e.preventDefault()
         e.stopPropagation()
-        const paths = [...active.selected]
-        window.roamer.trashFiles(paths).then((results) => {
-          const ok = results.filter((r) => !r.error)
-          const errors = results.filter((r) => r.error)
-          if (errors.length > 0) {
-            active.setError(`Failed: ${errors.map((e) => e.error).join(', ')}`)
-          }
-          if (ok.length > 0) {
-            setUndoStack((s) => [...s, { type: 'trash', paths: ok.map((r) => r.path) }])
-          }
-          active.setSelected(new Set())
-          leftPanel.refresh()
-          rightPanel.refresh()
-        })
+        trashWithConfirm([...active.selected])
         return
       }
 
@@ -576,14 +592,14 @@ export default function App() {
                 {splitView ? (
                   <Splitter defaultSizes={[50, 50]} minSize={200}>
                     <Splitter.Panel minSize={200}>
-                    <FilePanel panel={leftPanel} focused={activePanel === 'left'} onFocus={() => setActivePanel('left')} onDrop={handleFileDrop} onFileClick={setInspectedFile} onAddPlace={handleAddPlace} cutPaths={cutPathsSet} />
+                    <FilePanel panel={leftPanel} focused={activePanel === 'left'} onFocus={() => setActivePanel('left')} onDrop={handleFileDrop} onFileClick={setInspectedFile} onAddPlace={handleAddPlace} onTrash={trashWithConfirm} cutPaths={cutPathsSet} />
                     </Splitter.Panel>
                     <Splitter.Panel minSize={200}>
-                    <FilePanel panel={rightPanel} focused={activePanel === 'right'} onFocus={() => setActivePanel('right')} onDrop={handleFileDrop} onFileClick={setInspectedFile} onAddPlace={handleAddPlace} cutPaths={cutPathsSet} />
+                    <FilePanel panel={rightPanel} focused={activePanel === 'right'} onFocus={() => setActivePanel('right')} onDrop={handleFileDrop} onFileClick={setInspectedFile} onAddPlace={handleAddPlace} onTrash={trashWithConfirm} cutPaths={cutPathsSet} />
                     </Splitter.Panel>
                   </Splitter>
                 ) : (
-                  <FilePanel panel={leftPanel} focused={true} onFocus={() => setActivePanel('left')} onDrop={handleFileDrop} onFileClick={setInspectedFile} onAddPlace={handleAddPlace} cutPaths={cutPathsSet} />
+                  <FilePanel panel={leftPanel} focused={true} onFocus={() => setActivePanel('left')} onDrop={handleFileDrop} onFileClick={setInspectedFile} onAddPlace={handleAddPlace} onTrash={trashWithConfirm} cutPaths={cutPathsSet} />
                 )}
               </div>
               </Splitter.Panel>
@@ -595,14 +611,14 @@ export default function App() {
           ) : splitView ? (
             <Splitter defaultSizes={[50, 50]} minSize={200}>
               <Splitter.Panel minSize={200}>
-              <FilePanel panel={leftPanel} focused={activePanel === 'left'} onFocus={() => setActivePanel('left')} onDrop={handleFileDrop} onFileClick={setInspectedFile} onAddPlace={handleAddPlace} cutPaths={cutPathsSet} />
+              <FilePanel panel={leftPanel} focused={activePanel === 'left'} onFocus={() => setActivePanel('left')} onDrop={handleFileDrop} onFileClick={setInspectedFile} onAddPlace={handleAddPlace} onTrash={trashWithConfirm} cutPaths={cutPathsSet} />
               </Splitter.Panel>
               <Splitter.Panel minSize={200}>
-              <FilePanel panel={rightPanel} focused={activePanel === 'right'} onFocus={() => setActivePanel('right')} onDrop={handleFileDrop} onFileClick={setInspectedFile} onAddPlace={handleAddPlace} cutPaths={cutPathsSet} />
+              <FilePanel panel={rightPanel} focused={activePanel === 'right'} onFocus={() => setActivePanel('right')} onDrop={handleFileDrop} onFileClick={setInspectedFile} onAddPlace={handleAddPlace} onTrash={trashWithConfirm} cutPaths={cutPathsSet} />
               </Splitter.Panel>
             </Splitter>
           ) : (
-            <FilePanel panel={leftPanel} focused={true} onFocus={() => setActivePanel('left')} onDrop={handleFileDrop} onFileClick={setInspectedFile} onAddPlace={handleAddPlace} cutPaths={cutPathsSet} />
+            <FilePanel panel={leftPanel} focused={true} onFocus={() => setActivePanel('left')} onDrop={handleFileDrop} onFileClick={setInspectedFile} onAddPlace={handleAddPlace} onTrash={trashWithConfirm} cutPaths={cutPathsSet} />
           )}
           </Splitter.Panel>
           {/* Terminal panel */}

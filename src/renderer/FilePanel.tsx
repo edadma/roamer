@@ -278,10 +278,11 @@ interface FilePanelProps {
   onDrop?: (sourcePaths: string[], destDir: string, copy: boolean) => void
   onFileClick?: (entry: FileEntry | null) => void
   onAddPlace?: (name: string, path: string) => void
+  onTrash?: (paths: string[]) => void
   cutPaths?: Set<string>
 }
 
-export default function FilePanel({ panel, focused, onFocus, onDrop, onFileClick, onAddPlace, cutPaths }: FilePanelProps) {
+export default function FilePanel({ panel, focused, onFocus, onDrop, onFileClick, onAddPlace, onTrash, cutPaths }: FilePanelProps) {
   const containerRef = useRef<HTMLDivElement>(null)
   const lastClickedIndex = useRef<number>(-1)
   const wasRubberBand = useRef(false)
@@ -593,7 +594,7 @@ export default function FilePanel({ panel, focused, onFocus, onDrop, onFileClick
         if (entry) panel.startRename(entry.path)
         break
       case 'delete':
-        if (entry) window.roamer.trashFiles([entry.path])
+        if (entry) onTrash?.([entry.path])
         break
       case 'new-folder':
         panel.startNewItem('folder')
