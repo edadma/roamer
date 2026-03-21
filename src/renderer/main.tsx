@@ -1,6 +1,6 @@
 import { StrictMode } from 'react'
 import { createRoot } from 'react-dom/client'
-import { ThemeProvider } from './ThemeProvider'
+import { ThemeProvider } from 'asterui'
 import App from './App'
 import './index.css'
 
