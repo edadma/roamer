@@ -460,6 +460,38 @@ export default function App() {
     })
   }, [active, leftPanel, rightPanel])
 
+  // Copy to clipboard (from context menu)
+  const handleCopy = useCallback((paths: string[]) => {
+    setClipboard({ paths, mode: 'copy' })
+  }, [])
+
+  // Paste from clipboard (from context menu)
+  const handlePaste = useCallback(() => {
+    if (!clipboard) return
+    const dest = active.currentPath
+    const isCut = clipboard.mode === 'cut'
+    const op = isCut
+      ? window.roamer.moveFiles(clipboard.paths, dest)
+      : window.roamer.copyFiles(clipboard.paths, dest)
+    op.then((results) => {
+      const ok = results.filter((r) => !r.error)
+      const errors = results.filter((r) => r.error)
+      if (errors.length > 0) {
+        active.setError(`Failed: ${errors.map((e) => e.error).join(', ')}`)
+      }
+      if (ok.length > 0) {
+        if (isCut) {
+          setUndoStack((s) => [...s, { type: 'move', items: ok.map((r) => ({ src: r.src, dest: r.dest })) }])
+        } else {
+          setUndoStack((s) => [...s, { type: 'copy', created: ok.map((r) => r.dest) }])
+        }
+      }
+      if (isCut) setClipboard(null)
+      leftPanel.refresh()
+      rightPanel.refresh()
+    })
+  }, [active, clipboard, leftPanel, rightPanel])
+
   // Add to places
   const handleAddPlace = useCallback(async (name: string, placePath: string) => {
     await window.roamer.dbAddPlace(name, placePath)
@@ -616,14 +648,14 @@ export default function App() {
                 {splitView ? (
                   <Splitter defaultSizes={[50, 50]} minSize={200}>
                     <Splitter.Panel minSize={200}>
-                    <FilePanel panel={leftPanel} focused={activePanel === 'left'} onFocus={() => setActivePanel('left')} onDrop={handleFileDrop} onFileClick={setInspectedFile} onAddPlace={handleAddPlace} onTrash={trashWithConfirm} cutPaths={cutPathsSet} />
+                    <FilePanel panel={leftPanel} focused={activePanel === 'left'} onFocus={() => setActivePanel('left')} onDrop={handleFileDrop} onFileClick={setInspectedFile} onAddPlace={handleAddPlace} onTrash={trashWithConfirm} onCopy={handleCopy} onPaste={handlePaste} hasClipboard={!!clipboard} cutPaths={cutPathsSet} />
                     </Splitter.Panel>
                     <Splitter.Panel minSize={200}>
-                    <FilePanel panel={rightPanel} focused={activePanel === 'right'} onFocus={() => setActivePanel('right')} onDrop={handleFileDrop} onFileClick={setInspectedFile} onAddPlace={handleAddPlace} onTrash={trashWithConfirm} cutPaths={cutPathsSet} />
+                    <FilePanel panel={rightPanel} focused={activePanel === 'right'} onFocus={() => setActivePanel('right')} onDrop={handleFileDrop} onFileClick={setInspectedFile} onAddPlace={handleAddPlace} onTrash={trashWithConfirm} onCopy={handleCopy} onPaste={handlePaste} hasClipboard={!!clipboard} cutPaths={cutPathsSet} />
                     </Splitter.Panel>
                   </Splitter>
                 ) : (
-                  <FilePanel panel={leftPanel} focused={true} onFocus={() => setActivePanel('left')} onDrop={handleFileDrop} onFileClick={setInspectedFile} onAddPlace={handleAddPlace} onTrash={trashWithConfirm} cutPaths={cutPathsSet} />
+                  <FilePanel panel={leftPanel} focused={true} onFocus={() => setActivePanel('left')} onDrop={handleFileDrop} onFileClick={setInspectedFile} onAddPlace={handleAddPlace} onTrash={trashWithConfirm} onCopy={handleCopy} onPaste={handlePaste} hasClipboard={!!clipboard} cutPaths={cutPathsSet} />
                 )}
               </div>
               </Splitter.Panel>
@@ -635,14 +667,14 @@ export default function App() {
           ) : splitView ? (
             <Splitter defaultSizes={[50, 50]} minSize={200}>
               <Splitter.Panel minSize={200}>
-              <FilePanel panel={leftPanel} focused={activePanel === 'left'} onFocus={() => setActivePanel('left')} onDrop={handleFileDrop} onFileClick={setInspectedFile} onAddPlace={handleAddPlace} onTrash={trashWithConfirm} cutPaths={cutPathsSet} />
+              <FilePanel panel={leftPanel} focused={activePanel === 'left'} onFocus={() => setActivePanel('left')} onDrop={handleFileDrop} onFileClick={setInspectedFile} onAddPlace={handleAddPlace} onTrash={trashWithConfirm} onCopy={handleCopy} onPaste={handlePaste} hasClipboard={!!clipboard} cutPaths={cutPathsSet} />
               </Splitter.Panel>
               <Splitter.Panel minSize={200}>
-              <FilePanel panel={rightPanel} focused={activePanel === 'right'} onFocus={() => setActivePanel('right')} onDrop={handleFileDrop} onFileClick={setInspectedFile} onAddPlace={handleAddPlace} onTrash={trashWithConfirm} cutPaths={cutPathsSet} />
+              <FilePanel panel={rightPanel} focused={activePanel === 'right'} onFocus={() => setActivePanel('right')} onDrop={handleFileDrop} onFileClick={setInspectedFile} onAddPlace={handleAddPlace} onTrash={trashWithConfirm} onCopy={handleCopy} onPaste={handlePaste} hasClipboard={!!clipboard} cutPaths={cutPathsSet} />
               </Splitter.Panel>
             </Splitter>
           ) : (
-            <FilePanel panel={leftPanel} focused={true} onFocus={() => setActivePanel('left')} onDrop={handleFileDrop} onFileClick={setInspectedFile} onAddPlace={handleAddPlace} onTrash={trashWithConfirm} cutPaths={cutPathsSet} />
+            <FilePanel panel={leftPanel} focused={true} onFocus={() => setActivePanel('left')} onDrop={handleFileDrop} onFileClick={setInspectedFile} onAddPlace={handleAddPlace} onTrash={trashWithConfirm} onCopy={handleCopy} onPaste={handlePaste} hasClipboard={!!clipboard} cutPaths={cutPathsSet} />
           )}
           </Splitter.Panel>
           {/* Terminal panel */}

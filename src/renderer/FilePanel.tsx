@@ -279,10 +279,13 @@ interface FilePanelProps {
   onFileClick?: (entry: FileEntry | null) => void
   onAddPlace?: (name: string, path: string) => void
   onTrash?: (paths: string[]) => void
+  onCopy?: (paths: string[]) => void
+  onPaste?: () => void
+  hasClipboard?: boolean
   cutPaths?: Set<string>
 }
 
-export default function FilePanel({ panel, focused, onFocus, onDrop, onFileClick, onAddPlace, onTrash, cutPaths }: FilePanelProps) {
+export default function FilePanel({ panel, focused, onFocus, onDrop, onFileClick, onAddPlace, onTrash, onCopy, onPaste, hasClipboard, cutPaths }: FilePanelProps) {
   const containerRef = useRef<HTMLDivElement>(null)
   const lastClickedIndex = useRef<number>(-1)
   const wasRubberBand = useRef(false)
@@ -551,6 +554,7 @@ export default function FilePanel({ panel, focused, onFocus, onDrop, onFileClick
       if (entry.isDirectory && onAddPlace) {
         items.push({ key: 'add-place', label: 'Add to Places' })
       }
+      items.push({ key: 'copy-files', label: 'Copy' })
       items.push({ key: 'copy-path', label: 'Copy Path' })
       items.push({ key: 'rename', label: 'Rename' })
       items.push({ key: 'divider', divider: true })
@@ -558,10 +562,15 @@ export default function FilePanel({ panel, focused, onFocus, onDrop, onFileClick
       return items
     }
 
-    return [
+    const items: ContextMenuItem[] = [
       { key: 'new-folder', label: 'New Folder' },
       { key: 'new-file', label: 'New File' },
     ]
+    if (hasClipboard) {
+      items.push({ key: 'divider2', divider: true })
+      items.push({ key: 'paste', label: 'Paste' })
+    }
+    return items
   }, [panel.visibleEntries, onFocus, onAddPlace])
 
   const contextMenuEntryRef = useRef<FileEntry | undefined>(undefined)
@@ -586,6 +595,17 @@ export default function FilePanel({ panel, focused, onFocus, onDrop, onFileClick
         break
       case 'add-place':
         if (entry && onAddPlace) onAddPlace(entry.name, entry.path)
+        break
+      case 'copy-files':
+        if (entry) {
+          const paths = panel.selected.has(entry.path) && panel.selected.size > 1
+            ? [...panel.selected]
+            : [entry.path]
+          onCopy?.(paths)
+        }
+        break
+      case 'paste':
+        onPaste?.()
         break
       case 'copy-path':
         if (entry) navigator.clipboard.writeText(entry.path)
