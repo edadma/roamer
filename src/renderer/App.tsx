@@ -593,11 +593,9 @@ export default function App() {
             {placesList.map((place) => {
               const PlaceIcon = placeIconMap[place.icon ?? ''] ?? FolderIcon
               return (
-                <div key={place.path} data-place-path={place.path}>
-                  <Menu.Item key={place.path} icon={<PlaceIcon size="sm" />}>
-                    {place.name}
-                  </Menu.Item>
-                </div>
+                <Menu.Item key={place.path} icon={<PlaceIcon size="sm" />} data-place-path={place.path}>
+                  {place.name}
+                </Menu.Item>
               )
             })}
           </Menu>
