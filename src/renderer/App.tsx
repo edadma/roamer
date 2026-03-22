@@ -140,6 +140,24 @@ function PathBar({
   )
 }
 
+const darkTermTheme = {
+  background: '#1d232a', foreground: '#a6adbb', cursor: '#a6adbb', cursorAccent: '#1d232a',
+  selectionBackground: '#6366f140',
+  black: '#000000', red: '#f87272', green: '#36d399', yellow: '#fbbd23',
+  blue: '#3abff8', magenta: '#f000b8', cyan: '#37cdbe', white: '#d3d7cf',
+  brightBlack: '#555753', brightRed: '#f87272', brightGreen: '#36d399', brightYellow: '#fbbd23',
+  brightBlue: '#3abff8', brightMagenta: '#f000b8', brightCyan: '#37cdbe', brightWhite: '#eeeeec',
+}
+
+const lightTermTheme = {
+  background: '#ffffff', foreground: '#1f2937', cursor: '#1f2937', cursorAccent: '#ffffff',
+  selectionBackground: '#6366f140',
+  black: '#2e3436', red: '#cc0000', green: '#4e9a06', yellow: '#c4a000',
+  blue: '#3465a4', magenta: '#75507b', cyan: '#06989a', white: '#d3d7cf',
+  brightBlack: '#555753', brightRed: '#ef2929', brightGreen: '#8ae234', brightYellow: '#fce94f',
+  brightBlue: '#729fcf', brightMagenta: '#ad7fa8', brightCyan: '#34e2e2', brightWhite: '#eeeeec',
+}
+
 export default function App() {
   const { isDark, setTheme } = useTheme()
   const [cwd, setCwd] = useState('')
@@ -236,6 +254,14 @@ export default function App() {
       document.removeEventListener('focusout', refocus)
     }
   }, [])
+
+  // Update terminal theme when dark/light changes
+  useEffect(() => {
+    const term = rawTermRef.current
+    if (term) {
+      term.options.theme = isDark ? darkTermTheme : lightTermTheme
+    }
+  }, [isDark])
 
   // Update window title with current path
   useEffect(() => {
@@ -637,51 +663,7 @@ export default function App() {
             options={{
               fontSize: 13,
               cursorBlink: true,
-              theme: isDark ? {
-                background: '#1d232a',
-                foreground: '#a6adbb',
-                cursor: '#a6adbb',
-                cursorAccent: '#1d232a',
-                selectionBackground: '#6366f140',
-                black: '#000000',
-                red: '#f87272',
-                green: '#36d399',
-                yellow: '#fbbd23',
-                blue: '#3abff8',
-                magenta: '#f000b8',
-                cyan: '#37cdbe',
-                white: '#d3d7cf',
-                brightBlack: '#555753',
-                brightRed: '#f87272',
-                brightGreen: '#36d399',
-                brightYellow: '#fbbd23',
-                brightBlue: '#3abff8',
-                brightMagenta: '#f000b8',
-                brightCyan: '#37cdbe',
-                brightWhite: '#eeeeec',
-              } : {
-                background: '#ffffff',
-                foreground: '#1f2937',
-                cursor: '#1f2937',
-                cursorAccent: '#ffffff',
-                selectionBackground: '#6366f140',
-                black: '#2e3436',
-                red: '#cc0000',
-                green: '#4e9a06',
-                yellow: '#c4a000',
-                blue: '#3465a4',
-                magenta: '#75507b',
-                cyan: '#06989a',
-                white: '#d3d7cf',
-                brightBlack: '#555753',
-                brightRed: '#ef2929',
-                brightGreen: '#8ae234',
-                brightYellow: '#fce94f',
-                brightBlue: '#729fcf',
-                brightMagenta: '#ad7fa8',
-                brightCyan: '#34e2e2',
-                brightWhite: '#eeeeec',
-              },
+              theme: isDark ? darkTermTheme : lightTermTheme,
             }}
           />
           </Splitter.Panel>
