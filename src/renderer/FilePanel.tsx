@@ -1,5 +1,5 @@
 import { useEffect, useState, useCallback, useRef } from 'react'
-import { Typography, Input } from 'asterui'
+import { Typography, Input, Table } from 'asterui'
 import ContextMenu, { type ContextMenuItem } from './ContextMenu'
 import { getFileIcon } from './icons'
 import type { FileEntry } from './types'
@@ -704,17 +704,99 @@ export default function FilePanel({ panel, focused, onFocus, onDrop, onFileClick
       }}
     >
       {panel.viewMode === 'list' && (
-        <div
-          className="flex items-center gap-2 px-3 py-1 border-b border-base-300 text-xs shrink-0"
-          style={{ color: 'oklch(0.6 0 0)', fontWeight: 600, position: 'sticky', top: 0, backgroundColor: 'var(--fallback-b1,oklch(var(--b1)))', zIndex: 1 }}
-        >
-          <span style={{ width: 28 }} />
-          <span style={{ flex: 1 }}>Name</span>
-          <span style={{ width: 80, textAlign: 'right' }}>Size</span>
-          <span style={{ width: 80, textAlign: 'right' }}>Permissions</span>
-          <span style={{ width: 70, textAlign: 'right' }}>Owner</span>
-          <span style={{ width: 160, textAlign: 'right' }}>Modified</span>
-        </div>
+        <Table<FileEntry & Record<string, unknown>>
+          dataSource={panel.visibleEntries as (FileEntry & Record<string, unknown>)[]}
+          rowKey="path"
+          size="xs"
+          striped
+          hoverable
+          bordered
+          showHeader
+          pagination={false}
+          onRow={(record, index) => ({
+            ...itemProps(record as FileEntry, index),
+            'data-path': record.path,
+            style: {
+              backgroundColor: panel.selected.has(record.path)
+                ? 'oklch(0.65 0.2 250 / 0.2)'
+                : dropTarget === record.path
+                ? 'oklch(0.65 0.2 150 / 0.2)'
+                : undefined,
+              opacity: cutPaths?.has(record.path) ? 0.4 : undefined,
+              cursor: 'default',
+            },
+          })}
+          columns={[
+            {
+              key: 'icon',
+              title: '',
+              width: 28,
+              render: (_v, record) => {
+                const entry = record as FileEntry
+                if (!entry.isDirectory && thumbImageExts.has(entry.extension.toLowerCase())) {
+                  return <Thumbnail entry={entry} size="sm" />
+                }
+                const Icon = getFileIcon(entry.extension, entry.isDirectory)
+                return <Icon size="sm" className={entry.isDirectory ? 'text-warning' : 'text-base-content'} />
+              },
+            },
+            {
+              key: 'name',
+              title: 'Name',
+              dataIndex: 'name',
+              sorter: (a, b) => a.name.localeCompare(b.name),
+              render: (_v, record) => {
+                const entry = record as FileEntry
+                const gitColor = gitStatusColor(panel.gitStatus[entry.path])
+                if (panel.renamingPath === entry.path) return renameInput(entry)
+                return (
+                  <span style={{ color: gitColor }}>
+                    {entry.name}
+                    {entry.isSymlink && entry.linkTarget && (
+                      <span style={{ color: 'oklch(0.5 0 0)', marginLeft: 6 }}>→ {entry.linkTarget}</span>
+                    )}
+                  </span>
+                )
+              },
+            },
+            {
+              key: 'size',
+              title: 'Size',
+              width: 80,
+              align: 'right' as const,
+              sorter: (a, b) => a.size - b.size,
+              render: (_v, record) => {
+                const entry = record as FileEntry
+                return entry.isDirectory ? '' : formatSize(entry.size)
+              },
+            },
+            {
+              key: 'permissions',
+              title: 'Permissions',
+              width: 100,
+              align: 'right' as const,
+              render: (_v, record) => {
+                const entry = record as FileEntry
+                return <span style={{ fontFamily: 'monospace' }}>{formatPermissions(entry.mode, entry.isDirectory, entry.isSymlink)}</span>
+              },
+            },
+            {
+              key: 'owner',
+              title: 'Owner',
+              width: 80,
+              align: 'right' as const,
+              dataIndex: 'owner',
+            },
+            {
+              key: 'modified',
+              title: 'Modified',
+              width: 170,
+              align: 'right' as const,
+              sorter: (a, b) => a.modifiedAt.localeCompare(b.modifiedAt),
+              render: (_v, record) => formatDate((record as FileEntry).modifiedAt),
+            },
+          ]}
+        />
       )}
       {panel.visibleEntries.length === 0 && (
         <div style={{
@@ -729,7 +811,7 @@ export default function FilePanel({ panel, focused, onFocus, onDrop, onFileClick
           This folder is empty
         </div>
       )}
-      {panel.visibleEntries.map((entry, index) => {
+      {panel.viewMode === 'grid' && panel.visibleEntries.map((entry, index) => {
         const Icon = getFileIcon(entry.extension, entry.isDirectory)
         const isSelected = panel.selected.has(entry.path)
         const isDropTarget = dropTarget === entry.path
@@ -740,51 +822,6 @@ export default function FilePanel({ panel, focused, onFocus, onDrop, onFileClick
           : isDropTarget
           ? 'oklch(0.65 0.2 150 / 0.2)'
           : undefined
-
-        if (panel.viewMode === 'list') {
-          return (
-            <div
-              key={entry.name}
-              {...itemProps(entry, index)}
-              className="flex items-center gap-2 px-3 py-1 cursor-default"
-              style={{
-                backgroundColor: bgColor,
-                borderRadius: 4,
-                outline: isDropTarget ? '2px solid oklch(0.65 0.2 150)' : undefined,
-                fontSize: 13,
-                opacity: isCut ? 0.4 : undefined,
-              }}
-            >
-              {!entry.isDirectory && thumbImageExts.has(entry.extension.toLowerCase()) ? (
-                <Thumbnail entry={entry} size="sm" />
-              ) : (
-                <Icon size="sm" className={entry.isDirectory ? 'text-warning' : 'text-base-content'} />
-              )}
-              {panel.renamingPath === entry.path ? (
-                <div style={{ flex: 1 }}>{renameInput(entry)}</div>
-              ) : (
-                <span style={{ flex: 1, overflow: 'hidden', textOverflow: 'ellipsis', whiteSpace: 'nowrap', color: gitColor }}>
-                  {entry.name}
-                  {entry.isSymlink && entry.linkTarget && (
-                    <span style={{ color: 'oklch(0.5 0 0)', marginLeft: 6 }}>→ {entry.linkTarget}</span>
-                  )}
-                </span>
-              )}
-              <span style={{ width: 80, textAlign: 'right', color: 'oklch(0.6 0 0)', fontSize: 12 }}>
-                {entry.isDirectory ? '' : formatSize(entry.size)}
-              </span>
-              <span style={{ width: 80, textAlign: 'right', color: 'oklch(0.6 0 0)', fontSize: 12, fontFamily: 'monospace' }}>
-                {formatPermissions(entry.mode, entry.isDirectory, entry.isSymlink)}
-              </span>
-              <span style={{ width: 70, textAlign: 'right', color: 'oklch(0.6 0 0)', fontSize: 12 }}>
-                {entry.owner}
-              </span>
-              <span style={{ width: 160, textAlign: 'right', color: 'oklch(0.6 0 0)', fontSize: 12 }}>
-                {formatDate(entry.modifiedAt)}
-              </span>
-            </div>
-          )
-        }
 
         return (
           <button
